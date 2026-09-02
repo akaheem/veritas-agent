@@ -1,22 +1,20 @@
-"""GitHub Actions watchdog — recovery executor when the Codespace dies.
-
-Runs every 15 min during US market hours on trading days. Reads the paper
-account via alpaca-py (repo secrets); if the market is open and the agent
-hasn't committed fresh state recently, re-runs one agent cycle in Actions.
-
-Actions does NOT keep a codespace alive — this is a backup executor, not a
-keep-alive. Free on public repos.
-"""
+# GitHub Actions watchdog — recovery executor when the Codespace dies.
+#
+# Runs every 15 min during US market hours on trading days. Reads the paper
+# account via alpaca-py (repo secrets); if the market is open and the agent
+# has not committed fresh state recently, re-runs one agent cycle in Actions.
+#
+# Actions does NOT keep a codespace alive — backup executor, not a keep-alive.
 
 name: veritas-watchdog
 
 on:
+  workflow_dispatch: {}
   schedule:
     # 13:30–19:45 UTC ≈ 9:30–15:45 ET, Mon–Fri
     - cron: "30 13 * * 1-5"
     - cron: "*/15 14-19 * * 1-5"
     - cron: "45 19 * * 1-5"
-  workflow_dispatch: {}
 
 permissions:
   contents: write
