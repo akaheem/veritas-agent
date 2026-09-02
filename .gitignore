@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example
+sensitive-info/
+
+# State & logs (agent regenerates; keep dashboard data via explicit export)
+logs/
+state/runtime/
+*.jsonl
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Data caches
+cache/
+.firecrawl/
