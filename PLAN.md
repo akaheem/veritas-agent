@@ -13,7 +13,21 @@
 - Mirrored in session task tracker as tasks M0–M9.
 
 ## RESUME FROM
-→ M8/M9: repo + dashboard LIVE. Remaining: (1) user runs agent in Codespace with their Alpaca paper keys (RUNBOOK §2 smoke test), (2) create FRESH $100k competition account Sep 3 pre-market, run autonomous session, (3) one-pager + slides + video + social posts.
+→ M8: run `tools/preflight.py --competition` on the fresh account, then the autonomous session. M9 materials ready (submission/materials.json); deadline confirmed Sep 4 11:00 AM EDT on the event page (verify once more before submitting).
+
+## MASTER PLAN v2 STATUS (Sep 3)
+Adopted amendments — all committed (feat: Master Plan v2 amendments):
+- [x] Execution Confidence Score + adaptive pricing (veritas/execution.py) — shadow-book rejects logged
+- [x] Order state machine w/ UNKNOWN (veritas/orderstate.py) — timeout ⇒ reconcile-by-coid, never blind retry
+- [x] DTE default 1–5, 0DTE off (env: VERITAS_DTE_MIN=0 to enable); contracts default 1–3
+- [x] Correlated SPY+QQQ exposure gate ($4k combined) incl. working orders
+- [x] kill_switch_mode default halt_new (close_all on explicit override)
+- [x] LLM = analyst/ranker only (ranks menu; contract terms menu-only)
+- [x] Preflight checklist script (tools/preflight.py, --competition flag)
+- [x] Watchdog = recovery-only (single-owner rule)
+- [x] mcp SDK corrected to installed 1.29.x (ClientSession + stdio_client, 45s timeout)
+- [ ] Feed-identity note: data_feed already logged per cycle; upgrade to OPRA only if rules+time allow
+- [ ] Dashboard: add execution-confidence panel + rejected-by-reason counters (quick pass before submission)
 
 ## VERIFIED FACTS (workflow research, Sep 2 2026 — all with sources)
 - Deadline: **Sep 4, 11:00 AM EDT** (event page) — NOT the usual lablab Sunday 23:59 CEST. Submit ≥6h early for badge. Final trading window: Fri 9:30–11:00 ET only.
