@@ -164,6 +164,68 @@ class McpBroker:
         d = r.get("data") if r["ok"] else []
         return d if isinstance(d, list) else []
 
+    # ---------- working-order registry (gates must see accepted-but-unfilled risk) ----------
+    def _reg_path(self):
+        from pathlib import Path
+
+        return Path("./data/working_orders.json")
+
+    def _load_reg(self) -> dict:
+        p = self._reg_path()
+        if p.exists():
+            try:
+                return json.loads(p.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                return {}
+        return {}
+
+    def _save_reg(self, reg: dict) -> None:
+        p = self._reg_path()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(reg, indent=0), encoding="utf-8")
+
+    async def remember_working(self, order_id: str, tag: str, spread) -> None:
+        reg = self._load_reg()
+        reg[order_id] = {
+            "tag": tag,
+            "adjusted_max_loss": getattr(spread, "adjusted_max_loss", 0.0),
+            "submitted_at": utcnow().isoformat(),
+        }
+        self._save_reg(reg)
+
+    async def get_open_veritas_orders(self) -> list[dict]:
+        """Working veritas orders + persisted heat for the risk gates."""
+        reg = self._load_reg()
+        open_orders = await self.get_orders("open")
+        out = []
+        for o in open_orders:
+            oid = str(o.get("id", ""))
+            if oid in reg or str(o.get("client_order_id", "")).startswith("veritas-"):
+                out.append({
+                    "id": oid,
+                    "tag": reg.get(oid, {}).get("tag"),
+                    "adjusted_max_loss": reg.get(oid, {}).get("adjusted_max_loss", 0.0),
+                })
+        # prune registry entries no longer working
+        open_ids = {str(o.get("id")) for o in open_orders}
+        stale = [k for k in reg if k not in open_ids]
+        if stale:
+            for k in stale:
+                reg.pop(k, None)
+            self._save_reg(reg)
+        return out
+
+    async def cancel_all_working(self) -> int:
+        """Cancel every working veritas order (kill/EOD: never let a stale fill
+        open a position after flatten). Returns count of cancel attempts."""
+        n = 0
+        for o in await self.get_open_veritas_orders():
+            if o.get("id"):
+                r = await self.cancel(o["id"])
+                n += 1 if r.get("ok") else 0
+        self.audit.write("mcp", "cancel_all_working", cancelled=n)
+        return n
+
 
 def _redact(args: dict) -> dict:
     """Audit-log args without any sensitive material (none expected, belt+braces)."""

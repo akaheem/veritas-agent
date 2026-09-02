@@ -133,6 +133,43 @@ class PositionManager:
             self.audit.write("position", "adopted_positions", tags=adopted)
         return adopted
 
+    # ---------- mark prices ----------
+    async def fetch_mark_costs(self) -> dict[str, float]:
+        """Current closing cost per tracked spread from latest leg quotes.
+        Fetches via MCP get_option_latest_quote per leg; skips on failure."""
+        marks: dict[str, float] = {}
+        if self.broker is None:
+            return marks
+        for tag, info in list(self.open_spreads.items()):
+            if info.get("adopted") or not info.get("entry_credit"):
+                continue
+            legs = info["spread"].get("legs", [])
+            if len(legs) < 2:
+                continue
+            short_q = await self.broker.call("get_option_latest_quote", {"symbol_or_symbols": legs[0]["symbol"]})
+            long_q = await self.broker.call("get_option_latest_quote", {"symbol_or_symbols": legs[1]["symbol"]})
+            if not (short_q.get("ok") and long_q.get("ok")):
+                continue
+
+            def _mid(qr) -> float | None:
+                d = qr.get("data")
+                if isinstance(d, dict):
+                    d = d.get(legs[0]["symbol"]) if "symbol" not in d else d
+                    q = d.get("latest_quote") or d if isinstance(d, dict) else {}
+                    bp, ap = q.get("bid_price", q.get("bp")), q.get("ask_price", q.get("ap"))
+                    try:
+                        if bp is not None and ap is not None:
+                            return (float(bp) + float(ap)) / 2
+                    except (TypeError, ValueError):
+                        return None
+                return None
+
+            m_short, m_long = _mid(short_q), _mid(long_q)
+            if m_short is not None and m_long is not None:
+                # closing a credit spread costs (short_mid - long_mid) per share
+                marks[tag] = round(max(m_short - m_long, 0.01), 2)
+        return marks
+
     # ---------- exit management ----------
     async def manage(self, mark_costs: dict[str, float]) -> list[dict]:
         """Profit-take / stop / force-close. Called every cycle AND from the

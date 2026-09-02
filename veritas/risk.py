@@ -36,6 +36,8 @@ def evaluate(
     positions: list[dict],
     realized_today: float,
     unrealized_heat: float,
+    position_units: int | None = None,
+    entry_ok: bool | None = None,
 ) -> RiskVerdict:
     gates: dict[str, bool] = {}
     failures: list[str] = []
@@ -46,7 +48,7 @@ def evaluate(
     if not gates["account_available"]:
         failures.append("account state unavailable — refusing to trade blind")
 
-    gates["entry_window"] = in_entry_window()
+    gates["entry_window"] = in_entry_window() if entry_ok is None else entry_ok
     if not gates["entry_window"]:
         failures.append("outside entry window")
 
@@ -59,14 +61,19 @@ def evaluate(
     if not gates["per_trade_max_loss"]:
         failures.append(f"max loss {spread.adjusted_max_loss} > ${SETTINGS.max_loss_per_trade}")
 
-    gates["position_count"] = len(positions) < SETTINGS.max_open_positions
+    units = len(positions) if position_units is None else position_units
+    gates["position_count"] = units < SETTINGS.max_open_positions
     if not gates["position_count"]:
-        failures.append(f"open positions {len(positions)} >= max {SETTINGS.max_open_positions}")
+        failures.append(f"position units {units} (incl. working orders) >= max {SETTINGS.max_open_positions}")
 
     heat = (unrealized_heat + spread.adjusted_max_loss) / equity if equity else 9.9
     gates["portfolio_heat"] = heat <= SETTINGS.max_portfolio_heat
     if not gates["portfolio_heat"]:
         failures.append(f"portfolio heat {heat:.1%} > {SETTINGS.max_portfolio_heat:.0%}")
+
+    gates["notional_cap"] = spread.width * 100 * spread.contracts <= SETTINGS.max_notional_per_spread
+    if not gates["notional_cap"]:
+        failures.append(f"notional {spread.width * 100 * spread.contracts} > ${SETTINGS.max_notional_per_spread}")
 
     gates["liquidity"] = spread.liquidity_ok
     if not gates["liquidity"]:

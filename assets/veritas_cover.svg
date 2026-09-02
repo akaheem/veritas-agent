@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" font-family="'JetBrains Mono', Consolas, monospace">
+  <title>VERITAS - Execution-Aware Options Agent</title>
+  <desc>Hackathon cover: dark terminal aesthetic with VERITAS wordmark, decision pipeline, option-chain motif and P&amp;L ticks.</desc>
+
+  <defs>
+    <linearGradient id="wordGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.65" stop-color="#dde6ff"/>
+      <stop offset="1" stop-color="#aebfff"/>
+    </linearGradient>
+    <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#6c8cff" stop-opacity="0.18"/>
+      <stop offset="0.6" stop-color="#6c8cff" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#6c8cff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="50%" cy="44%" r="78%">
+      <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.5"/>
+    </radialGradient>
+    <pattern id="gridMinor" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#6c8cff" stroke-opacity="0.05" stroke-width="1"/>
+    </pattern>
+    <filter id="glow" x="-25%" y="-45%" width="150%" height="190%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="1920" height="1080" fill="#0b0e14"/>
+  <ellipse cx="960" cy="400" rx="760" ry="300" fill="url(#centerGlow)"/>
+  <rect width="1920" height="1080" fill="url(#gridMinor)"/>
+  <path d="M200 0V1080 M400 0V1080 M600 0V1080 M800 0V1080 M1000 0V1080 M1200 0V1080 M1400 0V1080 M1600 0V1080 M1800 0V1080 M0 200H1920 M0 400H1920 M0 600H1920 M0 800H1920 M0 1000H1920" stroke="#6c8cff" stroke-opacity="0.06" stroke-width="1" fill="none"/>
+
+  <!-- faint option-chain ladder (left) -->
+  <g font-size="18">
+    <g fill="#6c8cff" opacity="0.55" font-size="15" letter-spacing="2">
+      <text x="110" y="288">STRIKE</text>
+      <text x="205" y="288">MARK</text>
+      <text x="305" y="288">&#916;</text>
+    </g>
+    <g fill="#8fa3d4" opacity="0.30">
+      <text x="110" y="322">5980</text><text x="205" y="322">24.10</text><text x="305" y="322">0.81</text>
+      <text x="110" y="360">5975</text><text x="205" y="360">20.35</text><text x="305" y="360">0.76</text>
+      <text x="110" y="398">5970</text><text x="205" y="398">16.80</text><text x="305" y="398">0.71</text>
+      <text x="110" y="436">5965</text><text x="205" y="436">13.45</text><text x="305" y="436">0.65</text>
+      <text x="110" y="512">5955</text><text x="205" y="512">7.35</text><text x="305" y="512">0.51</text>
+      <text x="110" y="550">5950</text><text x="205" y="550">4.90</text><text x="305" y="550">0.43</text>
+      <text x="110" y="588">5945</text><text x="205" y="588">3.05</text><text x="305" y="588">0.34</text>
+      <text x="110" y="626">5940</text><text x="205" y="626">1.75</text><text x="305" y="626">0.25</text>
+      <text x="110" y="664">5935</text><text x="205" y="664">0.90</text><text x="305" y="664">0.17</text>
+      <text x="110" y="702">5930</text><text x="205" y="702">0.40</text><text x="305" y="702">0.10</text>
+    </g>
+    <g>
+      <rect x="96" y="452" width="292" height="30" rx="4" fill="#6c8cff" opacity="0.12"/>
+      <rect x="96" y="452" width="3" height="30" fill="#6c8cff" opacity="0.8"/>
+      <g fill="#b9c8ff" opacity="0.95">
+        <text x="110" y="474">5960</text><text x="205" y="474">10.20</text><text x="305" y="474">0.58</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- faint candlestick strip (bottom) -->
+  <path d="M134 976V1034 M214 992V1038 M294 972V1028 M454 980V1032 M694 976V1030 M774 988V1038 M854 980V1030 M1014 984V1034 M1174 978V1028 M1254 992V1038 M1414 988V1036 M1654 994V1038 M1814 998V1042" stroke="#6c8cff" stroke-opacity="0.12" stroke-width="2" fill="none"/>
+  <path d="M120 988h28v34h-28z M200 1000h28v30h-28z M280 984h28v36h-28z M440 990h28v36h-28z M680 986h28v36h-28z M760 998h28v34h-28z M840 990h28v34h-28z M1000 994h28v34h-28z M1160 988h28v32h-28z M1240 1000h28v32h-28z M1400 996h28v34h-28z M1640 1002h28v30h-28z M1800 1006h28v30h-28z" fill="#6c8cff" opacity="0.12"/>
+  <path d="M534 968V1022 M614 962V1018 M1094 972V1024 M1574 984V1032 M1734 986V1034" stroke="#3ddc97" stroke-opacity="0.18" stroke-width="2" fill="none"/>
+  <path d="M520 978h28v36h-28z M600 972h28v38h-28z M1080 982h28v36h-28z M1560 994h28v32h-28z M1720 996h28v32h-28z" fill="#3ddc97" opacity="0.18"/>
+  <path d="M374 998V1040 M934 996V1042 M1334 1000V1044 M1494 998V1042" stroke="#ff6b6b" stroke-opacity="0.18" stroke-width="2" fill="none"/>
+  <path d="M360 1006h28v28h-28z M920 1004h28v32h-28z M1320 1008h28v30h-28z M1480 1006h28v30h-28z" fill="#ff6b6b" opacity="0.18"/>
+  <line x1="96" y1="1048" x2="1824" y2="1048" stroke="#6c8cff" stroke-opacity="0.08" stroke-width="1"/>
+
+  <!-- terminal reticles -->
+  <g stroke="#6c8cff" stroke-opacity="0.22" stroke-width="1.5" fill="none">
+    <path d="M246 205H264 M255 196V214"/>
+    <path d="M1676 225H1694 M1685 216V234"/>
+    <path d="M146 901H164 M155 892V910"/>
+    <path d="M1766 700H1784 M1775 691V709"/>
+  </g>
+
+  <!-- vignette -->
+  <rect width="1920" height="1080" fill="url(#vig)"/>
+
+  <!-- top bar -->
+  <text x="80" y="78" font-size="20" letter-spacing="1" fill="#6c8cff" opacity="0.9">[ veritas://options-agent ]</text>
+  <text x="1840" y="78" font-size="18" letter-spacing="3" fill="#8394bd" text-anchor="end">ALPACA HACKATHON &#183; 2026</text>
+  <line x1="80" y1="112" x2="1840" y2="112" stroke="#6c8cff" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- live status line -->
+  <circle cx="684" cy="236" r="5" fill="#3ddc97" opacity="0.85"/>
+  <text x="962" y="242" font-size="17" letter-spacing="2" fill="#8fa3d4" opacity="0.75" text-anchor="middle">MKT OPEN &#183; GREEKS IN BOUNDS &#183; LATENCY 41MS</text>
+
+  <!-- wordmark -->
+  <text x="960" y="450" font-size="236" letter-spacing="26" font-weight="bold" fill="#5b78ff" opacity="0.5" filter="url(#glow)" text-anchor="middle">VERITAS</text>
+  <text x="960" y="450" font-size="236" letter-spacing="26" font-weight="bold" fill="url(#wordGrad)" text-anchor="middle">VERITAS</text>
+
+  <!-- divider -->
+  <line x1="640" y1="498" x2="944" y2="498" stroke="#6c8cff" stroke-opacity="0.45" stroke-width="2"/>
+  <line x1="976" y1="498" x2="1280" y2="498" stroke="#6c8cff" stroke-opacity="0.45" stroke-width="2"/>
+  <path d="M960 489 L969 498 L960 507 L951 498 Z" fill="#6c8cff"/>
+  <circle cx="640" cy="498" r="3" fill="#6c8cff" opacity="0.8"/>
+  <circle cx="1280" cy="498" r="3" fill="#6c8cff" opacity="0.8"/>
+
+  <!-- subtitle -->
+  <text x="965" y="552" font-size="33" letter-spacing="10" fill="#d9e2ff" text-anchor="middle">EXECUTION-AWARE OPTIONS AGENT</text>
+
+  <!-- tagline -->
+  <text x="960" y="606" font-size="27" letter-spacing="1" text-anchor="middle">
+    <tspan fill="#93a6dd">LLM proposes</tspan>
+    <tspan fill="#6c8cff" dx="10" dy="0">&#183;</tspan>
+    <tspan fill="#93a6dd" dx="10" dy="0">math disposes</tspan>
+  </text>
+
+  <!-- decision pipeline -->
+  <path d="M1322 690C1322 652 604 652 604 690" fill="none" stroke="#6c8cff" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="7 7"/>
+  <path d="M598 681 L610 681 L604 692 Z" fill="#6c8cff" opacity="0.5"/>
+  <text x="963" y="648" font-size="15" letter-spacing="2" fill="#6c8cff" opacity="0.55" text-anchor="middle">AUTONOMOUS LOOP</text>
+
+  <g stroke="#6c8cff" stroke-opacity="0.5" stroke-width="2">
+    <line x1="688" y1="720" x2="724" y2="720"/>
+    <line x1="894" y1="720" x2="930" y2="720"/>
+    <line x1="1050" y1="720" x2="1084" y2="720"/>
+    <line x1="1206" y1="720" x2="1240" y2="720"/>
+  </g>
+  <g fill="#6c8cff" opacity="0.7">
+    <path d="M734 720 L722 714 L722 726 Z"/>
+    <path d="M940 720 L928 714 L928 726 Z"/>
+    <path d="M1096 720 L1084 714 L1084 726 Z"/>
+    <path d="M1252 720 L1240 714 L1240 726 Z"/>
+  </g>
+
+  <g font-size="19" letter-spacing="1" text-anchor="middle">
+    <rect x="528" y="692" width="152" height="56" rx="10" fill="#111624" stroke="#6c8cff" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="604" y="727" fill="#cfdbfa">SNAPSHOT</text>
+    <rect x="734" y="692" width="152" height="56" rx="10" fill="#111624" stroke="#6c8cff" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="810" y="727" fill="#cfdbfa">VALIDATE</text>
+    <rect x="940" y="692" width="102" height="56" rx="10" fill="#111624" stroke="#6c8cff" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="991" y="727" fill="#cfdbfa">RISK</text>
+    <rect x="1096" y="692" width="102" height="56" rx="10" fill="#111624" stroke="#6c8cff" stroke-opacity="0.4" stroke-width="1.5"/>
+    <text x="1147" y="727" fill="#cfdbfa">SIZE</text>
+    <rect x="1252" y="692" width="140" height="56" rx="10" fill="#6c8cff"/>
+    <text x="1322" y="727" fill="#0b0e14" font-weight="bold">EXECUTE</text>
+  </g>
+
+  <!-- P&amp;L card -->
+  <rect x="1420" y="798" width="432" height="192" rx="16" fill="#0e1220" opacity="0.94" stroke="#6c8cff" stroke-opacity="0.28" stroke-width="1.5"/>
+  <rect x="1444" y="784" width="104" height="26" rx="6" fill="#6c8cff"/>
+  <text x="1496" y="802" font-size="15" letter-spacing="2" font-weight="bold" fill="#0b0e14" text-anchor="middle">P&amp;L</text>
+  <text x="1444" y="842" font-size="15" letter-spacing="3" fill="#7d8fbb">TODAY</text>
+  <circle cx="1766" cy="837" r="4" fill="#3ddc97"/>
+  <text x="1830" y="842" font-size="15" letter-spacing="3" fill="#3ddc97" text-anchor="end">LIVE</text>
+  <line x1="1444" y1="856" x2="1828" y2="856" stroke="#6c8cff" stroke-opacity="0.15" stroke-width="1"/>
+
+  <path d="M1444 906 L1498 896 L1544 902 L1596 878 L1622 892 L1652 886 L1694 868 L1738 876 L1784 854 L1828 846 L1828 920 L1444 920 Z" fill="#3ddc97" opacity="0.10"/>
+  <path d="M1444 906 L1498 896 L1544 902 L1596 878 L1622 892 L1652 886 L1694 868 L1738 876 L1784 854 L1828 846" fill="none" stroke="#3ddc97" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M1596 878 L1622 892 L1652 886" fill="none" stroke="#ff7a7a" stroke-width="2.5" stroke-dasharray="6 4" stroke-linejoin="round" stroke-linecap="round"/>
+
+  <path d="M1444 952 L1460 952 L1452 938 Z" fill="#3ddc97"/>
+  <text x="1470" y="958" font-size="28" font-weight="bold" fill="#3ddc97">+$1,284.50</text>
+  <text x="1806" y="958" font-size="22" font-weight="bold" fill="#ff7a7a" text-anchor="end">-$212.10</text>
+  <path d="M1812 944 L1826 944 L1819 956 Z" fill="#ff7a7a"/>
+</svg>
