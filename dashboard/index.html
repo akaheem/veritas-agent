@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VERITAS — Execution-Aware Options Agent</title>
+<style>
+  :root {
+    --bg: #0b0e14; --panel: #131722; --border: #232a3b;
+    --text: #e6e9f0; --muted: #8b93a7;
+    --green: #2ecc8f; --red: #ff5d5d; --amber: #f5b942; --accent: #6c8cff;
+    --mono: "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); padding: 24px; }
+  header { display: flex; align-items: baseline; gap: 16px; margin-bottom: 20px; }
+  h1 { font-size: 22px; letter-spacing: 2px; }
+  h1 span { color: var(--accent); }
+  .tagline { color: var(--muted); font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .tile { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .tile .label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .tile .value { font-size: 22px; font-weight: 700; }
+  .pos { color: var(--green); } .neg { color: var(--red); } .warn { color: var(--amber); }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+  .badge.ok { background: rgba(46,204,143,.15); color: var(--green); }
+  .badge.no { background: rgba(255,93,93,.15); color: var(--red); }
+  .badge.hold { background: rgba(245,185,66,.15); color: var(--amber); }
+  .thesis { color: var(--muted); font-size: 11px; max-width: 420px; }
+  footer { color: var(--muted); font-size: 11px; margin-top: 8px; text-align: center; }
+  .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+  @keyframes pulse { 0% {opacity:1;} 50% {opacity:.3;} 100% {opacity:1;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>VERITAS<span>&#9670;</span> Options Agent</h1>
+  <div class="tagline">LLM proposes · math disposes · execution audited</div>
+  <div style="margin-left:auto" class="tagline"><span class="live"></span><span id="updated">loading…</span></div>
+</header>
+
+<div class="grid">
+  <div class="tile"><div class="label">Equity</div><div class="value" id="equity">—</div></div>
+  <div class="tile"><div class="label">Daily P&amp;L</div><div class="value" id="pnl">—</div></div>
+  <div class="tile"><div class="label">Trades today</div><div class="value" id="trades">—</div></div>
+  <div class="tile"><div class="label">Risk blocks today</div><div class="value" id="blocks">—</div></div>
+  <div class="tile"><div class="label">Audit events</div><div class="value" id="events">—</div></div>
+</div>
+
+<section>
+  <h2>Decision chain — most recent cycles (proposal → validation → risk)</h2>
+  <table>
+    <thead><tr><th>Time (UTC)</th><th>Action</th><th>Confidence</th><th>Validation</th><th>Risk gate</th><th>Thesis</th></tr></thead>
+    <tbody id="decisions"><tr><td colspan="6">loading…</td></tr></tbody>
+  </table>
+</section>
+
+<footer>
+  Paper trading only — simulated fills do not model market impact, liquidity, or fees. Not financial advice.
+  <br>Audit-first autonomous agent · Alpaca MCP Server · <a style="color:var(--accent)" href="https://github.com/akaheem/veritas-agent">source</a>
+</footer>
+
+<script>
+const fmt$ = v => v == null ? "—" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 2});
+const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
+fetch("data/state.json?v=" + Date.now())
+  .then(r => r.json())
+  .then(s => {
+    document.getElementById("updated").textContent = "updated " + (s.updated_at || "never");
+    document.getElementById("equity").textContent = fmt$(s.equity);
+    const pnl = document.getElementById("pnl");
+    pnl.textContent = fmt$(s.daily_pnl);
+    pnl.className = "value " + cls(s.daily_pnl);
+    document.getElementById("trades").textContent = s.trades_today ?? "—";
+    document.getElementById("blocks").textContent = s.risk_blocks_today ?? "—";
+    document.getElementById("blocks").className = "value " + (s.risk_blocks_today > 0 ? "warn" : "");
+    document.getElementById("events").textContent = s.n_events_today ?? "—";
+    const rows = (s.decisions || []).slice().reverse().map(d => `
+      <tr>
+        <td>${(d.ts || "").replace("T", " ").slice(0, 19)}</td>
+        <td><span class="badge ${d.action === "PROPOSE" ? "ok" : "hold"}">${d.action || "—"}</span></td>
+        <td>${d.confidence != null ? (d.confidence * 100).toFixed(0) + "%" : "—"}</td>
+        <td><span class="badge ${d.validation ? "ok" : "no"}">${d.validation === null ? "—" : (d.validation ? "PASS" : "FAIL")}</span></td>
+        <td><span class="badge ${d.risk_approved ? "ok" : "no"}">${d.risk_approved === null ? "—" : (d.risk_approved ? "APPROVED" : "BLOCKED")}</span></td>
+        <td class="thesis">${(d.thesis || "").slice(0, 160)}</td>
+      </tr>`).join("");
+    document.getElementById("decisions").innerHTML = rows || '<tr><td colspan="6">no decisions yet today</td></tr>';
+  })
+  .catch(() => document.getElementById("updated").textContent = "state unavailable");
+</script>
+</body>
+</html>
