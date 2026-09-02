@@ -1,0 +1,285 @@
+{
+ "social": {
+  "posts": [
+   {
+    "hook": "Launch/concept: the LLM only picks from a code-computed menu, math has the final word",
+    "linkedin_post": "Launching VERITAS, my entry for the lablab.ai x Alpaca AI Trading Agents Hackathon (deadline Sep 4). It's an autonomous agent that trades 0-7 DTE vertical credit spreads on SPY and QQQ — on Alpaca paper trading, and I'll keep saying that every time.\n\nThe design decision I care most about: the LLM never touches a number. Each cycle, code computes a candidate menu of spreads with credit, width, max loss, breakeven, and edge — straight from the snapshot's bid/ask. Claude's entire action space is 'pick a menu item or abstain.' It can't invent strikes; custom legs are structurally rejected. Then a deterministic validator recomputes everything before any risk gate opens.\n\nThe LLM proposes. The math disposes.\n\nPaper trading only — simulated fills don't model liquidity or fees, and none of this is financial advice. Repo and write-up in the comments.",
+    "n": 1,
+    "when": "today (Sep 2) morning ET",
+    "x_post": "VERITAS is live for the @lablabai x @AlpacaHQ hackathon: 0-7 DTE credit spreads on Alpaca paper. Claude never gets the last word — it picks from a menu computed by code, then a validator recomputes every number. The LLM proposes. The math disposes. Paper only. #BuildInPublic"
+   },
+   {
+    "hook": "Execution-aware twist: each documented simulator weakness maps to a specific guardrail",
+    "linkedin_post": "Every broker simulator has documented gaps. Alpaca's own docs and issue tracker are unusually honest about theirs: paper fills ignore liquidity and NBBO size, multi-leg order replacement is hard-disabled, and option assignments don't arrive over the websocket.\n\nMost hackathon agents treat those as noise. We treated them as spec.\n\nSo VERITAS — our lablab.ai x Alpaca entry — turns each documented weakness into a guardrail. Liquidity-blind fills became a 5-contract cap per leg plus a pre-trade slippage haircut: if the trade's edge dies under pessimistic fills, it never gets sent. The disabled mleg replace became a policy of never replacing an order — cancel, then a fresh one with a new idempotent client_order_id. Missing assignment events became REST activity polling every cycle, plus a 5-minute reconciliation loop where broker state is truth and internal state is just a hypothesis.\n\nNone of this makes the simulator more accurate. It makes the agent robust to the day it isn't a simulator. Still paper trading only, obviously — not financial advice.",
+    "n": 2,
+    "when": "today (Sep 2) evening ET",
+    "x_post": "Most agents optimize for the simulator. VERITAS treats its documented gaps as spec: fills ignore liquidity, mleg replace is disabled, assignments skip the websocket. Each became a guardrail. @lablabai x @AlpacaHQ. Paper only. #BuildInPublic"
+   },
+   {
+    "hook": "Concrete internals: validator recompute, idempotent client_order_id, replayable JSONL audit trail",
+    "linkedin_post": "Three implementation details doing more work than any prompt in VERITAS:\n\n1. The validator. After Claude picks a spread, deterministic code recomputes credit, max loss, breakeven, and width from the raw leg quotes in the logged snapshot. If the LLM's numbers disagree with reality, the proposal dies — hallucinated economics cannot pass. The edge-ratio floor and the slippage haircut are checked against the recomputed values, not the proposed ones.\n\n2. client_order_id. Every order carries a unique ID before it's sent, so a timeout followed by a retry can't create a duplicate fill. Orders are never replaced — Alpaca hard-disables mleg replacement — so the only recovery paths are cancel-then-fresh, then let the reconciliation loop sort out what actually happened.\n\n3. The JSONL audit trail. Snapshot, features, LLM proposal, validator verdicts, risk verdicts, order, fill, exit, P&L — one JSON line per event, per cycle. Any trade can be replayed after the fact without trusting our summary of it.\n\nThat last one is the point of the whole project, honestly. An agent you can't audit is an agent you can't trust, and this is a hackathon build on paper trading — exactly the place to get the logging right. lablab.ai x Alpaca, submission Sep 4. Not financial advice.",
+    "n": 3,
+    "when": "Sep 3 midday ET",
+    "x_post": "Three details doing the real work in VERITAS: a validator that recomputes every LLM number from raw bid/ask; a unique client_order_id on every order so retries can't double-fill; a JSONL audit log replaying each trade line by line. @lablabai x @AlpacaHQ #BuildInPublic"
+   },
+   {
+    "hook": "Live GitHub Pages dashboard showing the full decision chain in real time",
+    "linkedin_post": "New in VERITAS: a live dashboard, built as a static GitHub Pages site the agent's JSONL audit log renders into.\n\nIt shows the actual decision chain, not a summary of it — the market snapshot each cycle used, the computed features (trend, RSI, IV/RV), the candidate menu, Claude's thesis and confidence, the validator and risk-gate verdicts line by line, then orders, fills, exits, and P&L. If the agent abstains, you can see why: which gate said no.\n\nI built it because 'trust me, the agent is running' is a weak claim for a hackathon submission. The audit log was already there for replay; pointing a static site at it was the cheapest way to make the whole loop inspectable while it runs.\n\nLink in the comments. Paper trading only — the dashboard shows simulated fills, and none of this is financial advice. lablab.ai x Alpaca hackathon, deadline Sep 4.",
+    "n": 4,
+    "when": "Sep 3 evening ET",
+    "x_post": "Watch it think. VERITAS renders its decision chain — snapshot, features, Claude's thesis, gate verdicts, fills, P&L — to a GitHub Pages dashboard. Live for @lablabai x @AlpacaHQ. Paper trading only. https://akaheem.github.io/veritas-agent/dashboard/index.html #BuildInPublic"
+   },
+   {
+    "hook": "Final stretch: agent runs autonomously through the deadline, the audit log is the submission",
+    "linkedin_post": "Deadline day. Submissions for the lablab.ai x Alpaca hackathon close at 11:00 ET, and VERITAS doesn't know that — there's no calendar input in its feature set.\n\nIt will spend today the way it spent the last few: capture one snapshot per cycle, compute features, pick from the candidate menu or abstain, survive the validator and the risk gates, execute over the Alpaca MCP server, then reconcile against broker state every five minutes. Entry window 10:00-15:00 ET, 0DTE positions force-closed by 15:30, everything flat by 15:45. No keyboard. No overrides. The watchdog restarts it if the codespace dies.\n\nThe submission isn't a demo video of me clicking. It's the repo, the one-pager, and a JSONL file of every decision the agent made on its own — replayable line by line. That's the claim, and the log is the evidence.\n\nPaper trading only, start to finish — simulated fills, no real money, not financial advice. Wrap-up post once the clock runs out.",
+    "n": 5,
+    "when": "Sep 4 early morning ET, before the 11:00 deadline",
+    "x_post": "Deadline day: 11:00 ET. The agent doesn't know that. It keeps running its cycle — snapshot, validate, execute, reconcile every 5 min — and the JSONL log at 11:00 is the submission. No keyboard, no overrides. Paper only. @lablabai @AlpacaHQ #BuildInPublic"
+   }
+  ]
+ },
+ "video": {
+  "recording_notes": "Recording setup (all free): OBS Studio, Display Capture for browser (dashboard, Alpaca docs, README) and Window Capture for VS Code/Codespace terminal. Record 1920x1080 at 30fps with a separate mic track and the noise-suppression filter on. Set browser zoom to 150 percent and terminal font to 16-18pt, dark theme throughout, so text survives compression. Record VO first, per scene, into separate tracks at the 140 wpm pacing (the per-scene scripts are pre-counted to fit), then cut video to VO — never trim the demo to save the VO.\\n\\nCut plan: assemble per-scene clips in DaVinci Resolve (free) or CapCut, cutting only at scene boundaries. Target assembly is 225s (~3:45), leaving ~15s of slack under the 4:00 cap. Add caption bullets over the three Alpaca weaknesses in scene 2 and the gate list in scene 5. Speed up long terminal scrolls 1.25-1.5x in scenes 3 and 7. Hold the end card 5 seconds.\\n\\nWhere things live: repo is github.com/akaheem/veritas-agent (cloned at the Codespace workspace root). Dashboard is already published at https://akaheem.github.io/veritas-agent/dashboard/index.html — record it in the browser, do not rebuild. The architecture diagram is the ASCII block in README.md — either screen-record the README view or rebuild it in Excalidraw for scene 5. The audit JSONL is written by the agent per cycle; locate it BEFORE recording (ls **/*.jsonl or git ls-files | grep jsonl) and note the absolute path for scenes 7 and 8. Alpaca limitation docs for scene 2 are on docs.alpaca.markets (paper trading: no market impact, liquidity-constrained fills, latency slippage; realtime vs historical bar caveats) plus any GitHub issues you want to show.\\n\\nPre-flight for the terminal scene: run uv run python -m veritas.main --help and confirm the exact --dry-run flag spelling as shipped (README documents --mode paper --once), then rehearse one full dry-run so you know how long it takes and where each stage prints. Record during US market hours, ideally 10:00-15:00 ET on a weekday, so option chains are live and the dashboard shows fresh rows; the README warns paper feeds can lag and realtime vs historical bars can disagree, so capture one clean cycle and keep the best take. A split tmux pane with tail -f on the audit JSONL during the dry-run makes the audit beat land visually.\\n\\nSafety on camera: paper account only; blur or zoom past .env, API keys, and any account numbers if they appear in frame.\\n\\nPlaceholders to personalize before recording: scene 6 references 'this weekend' of cycles and a bounced trade — pick real rows from the live dashboard; scene 9's roadmap (a challenging model arguing against each proposal, walk-forward evaluation) is a suggested framing — swap in your actual roadmap. Free tooling recap: OBS Studio (record), DaVinci Resolve or CapCut (edit), Audacity (VO cleanup), Excalidraw (diagram), tmux (already in the Codespace).",
+  "scenes": [
+   {
+    "on_screen_text": "VERITAS — Claude proposes. The math disposes.",
+    "scene": 1,
+    "seconds": 15,
+    "visual": "Hero shot of the live dashboard (https://akaheem.github.io/veritas-agent/dashboard/index.html) filling the frame, with a bold title overlay: 'VERITAS — Execution-Aware Options Agent'. Fade from black. Repo URL small in a corner.",
+    "vo": "Meet VERITAS: an autonomous agent trading options credit spreads on Alpaca paper — no human in the loop. One rule defines it. Claude proposes. The math disposes."
+   },
+   {
+    "on_screen_text": "Documented, not hypothetical: liquidity-blind fills | bars disagree | mleg replace fails | LLMs hallucinate numbers",
+    "scene": 2,
+    "seconds": 25,
+    "visual": "Browser on Alpaca's paper-trading docs (docs.alpaca.markets), scrolled to the limitations text; highlight liquidity, realtime-vs-historical bars, and multi-leg order replacement. Optional second pane: a chat window where an LLM confidently misprices an option. Caption bullets appear as each weakness is named.",
+    "vo": "Every LLM trading demo trusts two things that break: the model, and the simulator. Alpaca's own documentation admits paper fills ignore real liquidity, real-time and historical bars can disagree, and multi-leg order replacement fails. And LLMs hallucinate numbers. So most demos are a chatty model on a fake market. VERITAS attacks that gap head-on."
+   },
+   {
+    "on_screen_text": "snapshot → features → menu — all deterministic",
+    "scene": 3,
+    "seconds": 20,
+    "visual": "VS Code in the Codespace, split view: feature-engine and menu-builder code from the veritas package scrolling on one side, the README architecture diagram on the other. Overlay text bottom-left.",
+    "vo": "Each fifteen-minute cycle starts deterministic. One logged snapshot: quotes, bars, full option chains with greeks — the only data anyone sees. Code computes features: EMA trend, RSI, implied versus realized vol. Then builds a candidate menu — liquid zero-to-seven-day credit spreads with every number computed by code."
+   },
+   {
+    "on_screen_text": "menu-only picks • NO_TRADE always available • validator recomputes everything",
+    "scene": 4,
+    "seconds": 22,
+    "visual": "Terminal split pane: left shows a TradeProposal JSON from Claude; right shows validator verdict lines (PASS / REJECT with reasons). Quick flash of the validator recomputation code in VS Code between them.",
+    "vo": "Claude — Sonnet 5 — decides. It may only pick a menu item, or abstain; NO_TRADE is always on the table. It writes a falsifiable thesis and a confidence score. It cannot invent strikes or prices — custom legs are structurally rejected. Then a deterministic validator recomputes every number from raw quotes."
+   },
+   {
+    "on_screen_text": "risk gates: not LLM-overridable • MCP mleg order • broker state is truth • JSONL audit",
+    "scene": 5,
+    "seconds": 23,
+    "visual": "Full-screen architecture diagram (the README's pipeline, rebuilt in Excalidraw) with nodes lighting up left to right as narrated. Inset terminal clip showing risk-gate verdict lines and a multi-leg limit order submission log.",
+    "vo": "Code takes over. Risk gates the model can't touch: two percent max loss, a daily kill switch, position and heat caps, liquidity floors, entry windows. Edge must survive a slippage haircut. Alpaca's MCP server executes one multi-leg limit order with idempotent IDs. And every five minutes, reconciliation: broker state is truth."
+   },
+   {
+    "on_screen_text": "LIVE — akaheem.github.io/veritas-agent/dashboard",
+    "scene": 6,
+    "seconds": 25,
+    "visual": "Browser at https://akaheem.github.io/veritas-agent/dashboard/index.html. Scroll the recent cycles: proposals, validator verdicts, fills, P&L. Land on one passing trade, then scroll to a rejected proposal and hover its validator reason.",
+    "vo": "Here's the live dashboard on GitHub Pages — every cycle the agent ran this weekend. Proposals, validator verdicts, fills, P&L. This one passed every gate. And here's one the validator bounced: after the slippage haircut the edge didn't clear the floor, so it was never sent. Watching what doesn't trade is the feature."
+   },
+   {
+    "on_screen_text": "uv run python -m veritas.main --mode paper --dry-run  •  no orders sent",
+    "scene": 7,
+    "seconds": 45,
+    "visual": "Codespace terminal inside tmux. Run the dry-run command (README-documented CLI: python -m veritas.main, --mode paper, plus --dry-run — verify exact flags with --help before recording). Stages print sequentially: snapshot logged, features, menu, proposal JSON with thesis, validator recomputation, gate verdicts. Split pane shows tail -f on the audit JSONL as a new line appends. Big 'NO ORDERS SENT' stamp at the end.",
+    "vo": "Now live in the Codespace. One command, dry-run: no orders will be sent. The snapshot lands — logged once, the single source of truth. Features compute. The menu builds from real SPY and QQQ chains. Claude picks a spread and writes its thesis. Then the validator recomputes credit, max loss, breakeven and width straight from the raw leg quotes. Risk gates check position count, heat, liquidity, entry window, expiry protection. Finally the decision chain prints, and one more line appends to the JSONL audit file. Same pipeline that trades — minus the order."
+   },
+   {
+    "on_screen_text": "replayable: snapshot → features → proposal → validator → gates → order → fill → exit → P&L",
+    "scene": 8,
+    "seconds": 25,
+    "visual": "Editor opening one cycle's JSONL audit records (or jq listing the event types per line), then cut to the dashboard stats panel. Overlay the decision-chain chain of arrows as it's spoken.",
+    "vo": "That audit file is the deliverable. Every trade is a replayable chain: snapshot, features, LLM proposal, validator, risk verdicts, order, fill, exit, P&L. Open the JSONL and replay any decision, line by line. Anyone can verify the agent did what it claims. An agent you can audit, not just watch."
+   },
+   {
+    "on_screen_text": "github.com/akaheem/veritas-agent • Paper trading only. Not financial advice.",
+    "scene": 9,
+    "seconds": 25,
+    "visual": "End card: repo URL (github.com/akaheem/veritas-agent), dashboard URL, and the disclaimer text from the README. Hold 5 seconds. Tagline returns as the final overlay.",
+    "vo": "Next up: a second model that argues against every proposal before it ships, and walk-forward evaluation over historical snapshots. For now — paper trading only. Simulated fills ignore market impact, liquidity and fees. Not financial advice. VERITAS: Claude proposes. The math disposes. Thanks for watching."
+   }
+  ],
+  "total_seconds": 225
+ },
+ "slides": {
+  "deck_title": "VERITAS — Execution-Aware Options Agent",
+  "slides": [
+   {
+    "bullets": [
+     "Autonomous short-DTE credit spread trading on Alpaca paper",
+     "The LLM proposes. The math disposes.",
+     "Every trade audits its own execution first",
+     "lablab.ai x Alpaca Hackathon, Aug 28 - Sep 4 2026",
+     "Paper trading only. Not financial advice."
+    ],
+    "n": 1,
+    "speaker_notes": "Open with the one-liner: VERITAS is an autonomous agent that sells 0-7 DTE options credit spreads on Alpaca paper trading, and it audits its own execution before risking a dollar. Plant the thesis phrase early — 'the LLM proposes, the math disposes' — because every later slide is evidence for it. Set expectations: this maps directly to the judges' four criteria, and the deck follows that arc.",
+    "title": "VERITAS — The LLM Proposes. The Math Disposes.",
+    "visual_direction": "Full-bleed dark terminal title card on #0b0e14; large monospace VERITAS wordmark in #6c8cff with a blinking block cursor, subtle scanline overlay; small ASCII options-chain motif in background at low opacity; team name and hackathon dates in dim gray footer."
+   },
+   {
+    "bullets": [
+     "Paper fills ignore liquidity, market impact, fees",
+     "Real-time and historical bars can disagree",
+     "Multi-leg order replacement fails; timeouts leave ambiguity",
+     "Assignments never arrive over websockets",
+     "LLMs confidently hallucinate strikes, credits, losses"
+    ],
+    "n": 2,
+    "speaker_notes": "Frame the problem as a trust gap, not a missing-strategy gap: most hackathon agents blindly trust simulator fills and their own LLM. Cite that Alpaca's own docs and issue tracker acknowledge paper trading omits market impact, liquidity, latency slippage, and fees, and that bar sources can disagree. Land the punchline: an agent you cannot audit is an agent you cannot trust — which sets up our whole design.",
+    "title": "The Trust Gap: Why Agents Shouldn't Be Blinded-Trusted",
+    "visual_direction": "Split-screen 'expectation vs reality' terminal: left panel shows a confident LLM quote block, right panel shows mismatched broker state with red (#ff5470) diff highlights; both panels monospace on #0b0e14; small caption row citing Alpaca docs/issue tracker in dim gray."
+   },
+   {
+    "bullets": [
+     "Every documented weakness becomes a coded guardrail",
+     "Liquidity-blind fills: position caps plus slippage haircut",
+     "Bar inconsistency: one snapshot, single source of truth",
+     "Fragile mleg replacement: cancel, then fresh idempotent order",
+     "Hallucinated math: validator recomputes before gates open"
+    ],
+    "n": 3,
+    "speaker_notes": "This is the creativity-and-originality slide: instead of exploiting simulator quirks, VERITAS treats each documented weakness as a risk to model, turning a broker's caveats into a guardrail spec. Walk one row end-to-end — liquidity-blind fills become hard 1-5 contract caps plus a conservative slippage haircut that edge must survive. Emphasize the mapping is literal and public, straight from Alpaca's documentation, so judges can verify the design intent.",
+    "title": "Execution-Aware: Documented Weaknesses Become Guardrails",
+    "visual_direction": "Two-column mapping table (weakness left, guardrail right) styled as a terminal table on #0b0e14; #6c8cff arrow glyphs between columns; guardrail cells highlighted with subtle accent underline; five rows max, monospace, generous row spacing."
+   },
+   {
+    "bullets": [
+     "Snapshot, features, Claude proposal, validator, risk gates",
+     "Execution-reality slippage check precedes every order",
+     "Alpaca MCP executes; reconciliation keeps broker truth",
+     "Kill switch halts everything without asking permission",
+     "JSONL audit log feeds live P&L dashboard"
+    ],
+    "n": 4,
+    "speaker_notes": "Walk the pipeline left to right: one snapshot feeds deterministic features, Claude proposes from a menu, a validator recomputes, risk gates and the kill switch approve or halt, then the execution-reality check prices pessimistic fills before anything reaches Alpaca MCP. Stress the direction of authority — code sits between the model and the broker at every hop, and nothing is LLM-overridable. Close by noting every hop appends to the JSONL audit log that powers the dashboard.",
+    "title": "Architecture: A Pipeline Where Code Outvotes The Model",
+    "visual_direction": "Simple left-to-right flow diagram: nine monospace boxes (Market Data, Feature Engine, Claude, Validator, Risk Gates/Kill Switch, Execution Reality Check, Alpaca MCP, Reconciliation, Audit Log) connected by #6c8cff arrows on #0b0e14; validator and risk-gate boxes outlined in accent to show the choke point; audit log box branches upward to 'P&L + Dashboard'."
+   },
+   {
+    "bullets": [
+     "One logged snapshot per cycle, never re-fetched",
+     "Code computes EMA, RSI, IV-over-RV regime features",
+     "Deterministic menu: credit, width, max loss, edge",
+     "Claude picks menu items or NO_TRADE, with thesis",
+     "Validator recomputes every number; invented legs rejected"
+    ],
+    "n": 5,
+    "speaker_notes": "Explain the menu-only contract: Claude never sees raw freedom — it picks among spreads whose economics code computed from the cycle's single logged snapshot, or abstains with NO_TRADE, always available. Each pick carries a falsifiable thesis and confidence, and a deterministic validator then recomputes credit, max loss, breakeven, and edge from raw leg quotes; any invented strike or number is structurally rejected. This is our answer to LLM numerical hallucination — the model's creativity is preserved, its authority is not.",
+    "title": "AI Decision Loop: Menu-Only LLM, Deterministic Validator",
+    "visual_direction": "Three-panel horizontal terminal sequence on #0b0e14: (1) rendered spread menu with accent-highlighted rows, (2) Claude's TradeProposal JSON with thesis string, (3) validator output showing PASS in green (#3fd68f) and a REJECT line in red; panel borders in #6c8cff; monospace throughout."
+   },
+   {
+    "bullets": [
+     "Per-trade max loss $2,000 — two percent",
+     "Daily loss $2,000 flattens everything instantly",
+     "Max four spreads; portfolio heat under 8%",
+     "Liquidity: OI 100+, spread within 30% mid",
+     "Entries 10:00-15:00 ET; 0DTE force-close 15:30"
+    ],
+    "n": 6,
+    "speaker_notes": "Read the table as a contract, not a preference: every gate is enforced in code and cannot be overridden by the LLM, including the daily-loss kill switch that flattens all positions. Highlight the exit logic too — buy back at 50% of credit for profit, 200% as stop, plus EOD force-close so shorts never ride into expiry. Judges scoring risk discipline should see that position sizing (2% max loss, 8% heat) is conservative by construction, not by prompting.",
+    "title": "Risk Gates: Hard Limits No LLM Can Override",
+    "visual_direction": "Full-width terminal-style risk table on #0b0e14 with three columns: Gate, Limit, Verdict; verdict column shows green PASS or red HALT chips; header row in #6c8cff; a bottom banner row 'kill switch: non-LLM-overridable' in red monospace."
+   },
+   {
+    "bullets": [
+     "alpaca-mcp-server v2.3.1, official MCP Python SDK",
+     "stdio transport, persistent session, explicit env allow-list",
+     "place_option_order: mleg net-credit limit orders",
+     "Idempotent client_order_id; cancel-then-fresh, never replace",
+     "Five-minute reconciliation; REST polling catches assignments"
+    ],
+    "n": 7,
+    "speaker_notes": "This is the technology-implementation depth slide: VERITAS is a programmatic MCP client — not a CLI wrapper — holding one stdio session for the whole loop and submitting multi-leg limit orders with net credit as a negative limit price and per-leg position intent. Because Alpaca hard-disables mleg replacement, orders are never replaced; every order carries a unique client_order_id for safe retry after 5xx/timeouts, and a five-minute reconciliation loop polls positions and activities so broker state is truth. Note that REST polling is also how we catch assignment events Alpaca does not stream over websockets.",
+    "title": "Alpaca MCP: Programmatic Client, Broker State Is Truth",
+    "visual_direction": "Sequence diagram, agent left to MCP server middle to Alpaca right, with labeled verticals: initialize session, place_option_order (mleg), client_order_id retry, cancel + fresh, positions/activities poll; monospace labels on #0b0e14, #6c8cff lifelines, one red callout arrow for 'replace mleg: hard-disabled by Alpaca'."
+   },
+   {
+    "bullets": [
+     "Full JSONL chain per cycle, every stage",
+     "Snapshot, proposal, verdicts, order, fill, exit, P&L",
+     "Broker state re-verified every five minutes",
+     "Any trade independently replayable by judges",
+     "Codespace plus watchdog survives laptop disconnects"
+    ],
+    "n": 8,
+    "speaker_notes": "Auditability is our differentiator on presentation-and-execution: every cycle appends snapshot, features, LLM proposal, validation, risk verdicts, order, fill, exit, and P&L to a JSONL trail, so any trade can be replayed and independently reviewed. The reconciliation engine keeps internal state honest — broker state is truth, internal state is a hypothesis re-verified every five minutes. Add the ops story: it runs in a tmux Codespace with a GitHub Actions watchdog that re-runs reconciliation and recovery if the runtime dies.",
+    "title": "Audit-First: Every Decision Replayable, Line By Line",
+    "visual_direction": "Annotated JSONL log screenshot on #0b0e14: one trade's event lines color-coded by stage (snapshot gray, proposal #6c8cff, verdicts amber, fills green, exit red) with a right-hand gutter of stage labels; faint timeline rule connecting events top to bottom."
+   },
+   {
+    "bullets": [
+     "Dashboard: akaheem.github.io/veritas-agent/dashboard",
+     "Repo: github.com/akaheem/veritas-agent",
+     "Live cycle: snapshot, decision, order, log",
+     "Watch validator reject and kill switch fire",
+     "QR codes on screen; audit log fully open"
+    ],
+    "n": 9,
+    "speaker_notes": "Run one live cycle during the pitch — snapshot to decision to order to log line appearing — then immediately open the JSONL trail to prove nothing was staged. Point judges at the dashboard URL and repo for post-pitch exploration, and invite them to trigger scrutiny themselves: watch the validator reject a proposal or the kill switch fire in real time. Ending the demo on the audit log ties the whole story back to trust.",
+    "title": "Live Demo: Watch The Agent Think",
+    "visual_direction": "Dashboard terminal screenshot maximized on #0b0e14 with #6c8cff headers, showing equity, open positions, and recent cycle log; two QR codes bottom-right (dashboard, repo) in white-on-dark; a small red 'LIVE' dot indicator top-right."
+   },
+   {
+    "bullets": [
+     "Paper P&L, win rate, drawdown — dashboard live",
+     "Guardrail stats: abstentions, rejections, kill-switch triggers",
+     "Next: more underliers, adaptive DTE, richer regimes",
+     "Next: streaming assignments, shadow-mode live validation",
+     "MIT licensed, replayable — a reproducible research artifact"
+    ],
+    "n": 10,
+    "speaker_notes": "Lead with the P&L numbers pulled straight from the dashboard moments before presenting — net P&L, trade count, win rate, and max drawdown — then show guardrail telemetry (abstentions, validator rejections, kill-switch triggers) as evidence the safety system actually bites. Roadmap: expand beyond SPY/QQQ to more underliers, adaptive DTE selection, richer regime models, native assignment streaming, and a shadow-mode phase before any real capital. Close by restating the thesis: VERITAS is a reproducible, MIT-licensed artifact where the LLM proposes and the math disposes — and invite questions.",
+    "title": "Results & Roadmap: Numbers First, Then What's Next",
+    "visual_direction": "Top two-thirds: equity-curve line chart on #0b0e14 with #6c8cff line, shaded drawdown bands, and P&L stat tiles (net P&L, win rate, trades, max drawdown); bottom third: horizontal roadmap timeline with four accent milestone ticks; all monospace labels."
+   }
+  ]
+ },
+ "cover": {
+  "design_notes": "Layout: (1) Wordmark \"VERITAS\" centered at ~y=535 in 236px bold monospace with wide letter-spacing, duplicated once — a blurred #6c8cff copy underneath for a soft glow and a crisp #eef2ff copy on top for thumbnail legibility; an accent rule with a diamond cap sits below it. (2) Subtitle \"Execution-Aware Options Agent\" in accent #6c8cff, tagline \"LLM proposes · math disposes\" in muted gray, both centered. (3) Decision pipeline: five rounded-rect nodes (SNAPSHOT → VALIDATE → SIZE → RISK → EXECUTE) with connector arrows, per-node captions, a dashed feedback loop from EXECUTE back to SNAPSHOT labeled \"ack · feedback\"; RISK is stroked in accent, EXECUTE in green to signal the terminal action. (4) P&L tick motif top-right: mini candlesticks plus \"+$1,284.62\" in #34d399 and \"max DD\" in #f4587a, balanced by a \"$ veritas --mode=live\" terminal prompt top-left. (5) Background: #0b0e14 with two-layer low-opacity accent grid, a faint descending candlestick band across the top, radial center glow, and a vignette; corner brackets and a bottom status strip (risk-armed dot, fills/latency readout) frame the composition. All text uses the JetBrains Mono/Consolas/monospace stack; no external assets, filters, or rasters — the one glow effect is a plain Gaussian blur that degrades gracefully. File saved to C:\\Alpaca AI Trading Agents Hackathon\\veritas-cover.svg.",
+  "svg": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1920\" height=\"1080\" viewBox=\"0 0 1920 1080\" role=\"img\" aria-label=\"VERITAS - Execution-Aware Options Agent\">\n  <title>VERITAS - Execution-Aware Options Agent</title>\n  <defs>\n    <pattern id=\"gridMinor\" width=\"48\" height=\"48\" patternUnits=\"userSpaceOnUse\">\n      <path d=\"M48 0H0V48\" fill=\"none\" stroke=\"#6c8cff\" stroke-opacity=\"0.06\" stroke-width=\"1\"/>\n    </pattern>\n    <pattern id=\"gridMajor\" width=\"240\" height=\"240\" patternUnits=\"userSpaceOnUse\">\n      <path d=\"M240 0H0V240\" fill=\"none\" stroke=\"#6c8cff\" stroke-opacity=\"0.10\" stroke-width=\"1\"/>\n    </pattern>\n    <radialGradient id=\"centerGlow\" gradientUnits=\"userSpaceOnUse\" cx=\"960\" cy=\"470\" r=\"660\">\n      <stop offset=\"0\" stop-color=\"#6c8cff\" stop-opacity=\"0.14\"/>\n      <stop offset=\"1\" stop-color=\"#6c8cff\" stop-opacity=\"0\"/>\n    </radialGradient>\n    <radialGradient id=\"vignette\" gradientUnits=\"userSpaceOnUse\" cx=\"960\" cy=\"520\" r=\"1150\">\n      <stop offset=\"0.62\" stop-color=\"#04060a\" stop-opacity=\"0\"/>\n      <stop offset=\"1\" stop-color=\"#04060a\" stop-opacity=\"0.55\"/>\n    </radialGradient>\n    <linearGradient id=\"ruleFade\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\">\n      <stop offset=\"0\" stop-color=\"#6c8cff\" stop-opacity=\"0\"/>\n      <stop offset=\"0.5\" stop-color=\"#6c8cff\" stop-opacity=\"0.9\"/>\n      <stop offset=\"1\" stop-color=\"#6c8cff\" stop-opacity=\"0\"/>\n    </linearGradient>\n    <filter id=\"softGlow\" x=\"-30%\" y=\"-30%\" width=\"160%\" height=\"160%\">\n      <feGaussianBlur stdDeviation=\"9\"/>\n    </filter>\n  </defs>\n\n  <!-- ======== background ======== -->\n  <rect width=\"1920\" height=\"1080\" fill=\"#0b0e14\"/>\n  <rect width=\"1920\" height=\"1080\" fill=\"url(#gridMinor)\"/>\n  <rect width=\"1920\" height=\"1080\" fill=\"url(#gridMajor)\"/>\n  <rect width=\"1920\" height=\"1080\" fill=\"url(#centerGlow)\"/>\n\n  <!-- faint candlestick motif (top band) -->\n  <g stroke-opacity=\"0.13\" fill-opacity=\"0.13\">\n    <line x1=\"147\" y1=\"250\" x2=\"147\" y2=\"320\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"130\" y=\"270\" width=\"34\" height=\"35\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"219\" y1=\"230\" x2=\"219\" y2=\"300\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"202\" y=\"245\" width=\"34\" height=\"37\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"291\" y1=\"208\" x2=\"291\" y2=\"288\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"274\" y=\"224\" width=\"34\" height=\"42\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"363\" y1=\"185\" x2=\"363\" y2=\"265\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"346\" y=\"200\" width=\"34\" height=\"40\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"435\" y1=\"150\" x2=\"435\" y2=\"242\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"418\" y=\"166\" width=\"34\" height=\"49\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"507\" y1=\"132\" x2=\"507\" y2=\"212\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"490\" y=\"147\" width=\"34\" height=\"45\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"579\" y1=\"118\" x2=\"579\" y2=\"200\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"562\" y=\"134\" width=\"34\" height=\"47\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"651\" y1=\"96\" x2=\"651\" y2=\"182\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"634\" y=\"112\" width=\"34\" height=\"46\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"723\" y1=\"110\" x2=\"723\" y2=\"196\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"706\" y=\"126\" width=\"34\" height=\"46\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"795\" y1=\"140\" x2=\"795\" y2=\"222\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"778\" y=\"156\" width=\"34\" height=\"46\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"867\" y1=\"122\" x2=\"867\" y2=\"206\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"850\" y=\"138\" width=\"34\" height=\"48\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"939\" y1=\"98\" x2=\"939\" y2=\"188\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"922\" y=\"114\" width=\"34\" height=\"48\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"1011\" y1=\"128\" x2=\"1011\" y2=\"214\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"994\" y=\"144\" width=\"34\" height=\"48\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"1083\" y1=\"102\" x2=\"1083\" y2=\"190\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"1066\" y=\"118\" width=\"34\" height=\"48\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"1155\" y1=\"82\" x2=\"1155\" y2=\"176\" stroke=\"#f4587a\" stroke-width=\"2\"/><rect x=\"1138\" y=\"96\" width=\"34\" height=\"50\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n    <line x1=\"1227\" y1=\"90\" x2=\"1227\" y2=\"180\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"1210\" y=\"106\" width=\"34\" height=\"46\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    <line x1=\"1299\" y1=\"62\" x2=\"1299\" y2=\"152\" stroke=\"#34d399\" stroke-width=\"2\"/><rect x=\"1282\" y=\"76\" width=\"34\" height=\"50\" fill=\"#34d399\" stroke=\"#34d399\"/>\n  </g>\n\n  <rect width=\"1920\" height=\"1080\" fill=\"url(#vignette)\"/>\n\n  <!-- ======== content ======== -->\n  <g font-family=\"JetBrains Mono, Consolas, monospace\">\n\n    <!-- corner brackets -->\n    <g fill=\"none\" stroke=\"#6c8cff\" stroke-opacity=\"0.5\" stroke-width=\"2.5\">\n      <path d=\"M72 36H36v36\"/>\n      <path d=\"M1848 36h36v36\"/>\n      <path d=\"M1884 1008v36h-36\"/>\n      <path d=\"M72 1044H36v-36\"/>\n    </g>\n\n    <!-- top-left terminal prompt -->\n    <text x=\"80\" y=\"104\" font-size=\"22\" fill=\"#7c86a0\"><tspan fill=\"#6c8cff\">$</tspan> veritas --mode=live</text>\n    <rect x=\"366\" y=\"86\" width=\"12\" height=\"24\" fill=\"#6c8cff\" opacity=\"0.9\"/>\n\n    <!-- top-right P&L tick motif -->\n    <text x=\"1848\" y=\"102\" text-anchor=\"end\" font-size=\"16\" letter-spacing=\"3\" fill=\"#7c86a0\">P&amp;L · SESSION</text>\n    <g stroke-width=\"2\">\n      <line x1=\"1456\" y1=\"150\" x2=\"1456\" y2=\"206\" stroke=\"#34d399\"/><rect x=\"1444\" y=\"162\" width=\"24\" height=\"36\" fill=\"#34d399\" stroke=\"#34d399\"/>\n      <line x1=\"1494\" y1=\"136\" x2=\"1494\" y2=\"200\" stroke=\"#f4587a\"/><rect x=\"1482\" y=\"150\" width=\"24\" height=\"36\" fill=\"#f4587a\" stroke=\"#f4587a\"/>\n      <line x1=\"1532\" y1=\"118\" x2=\"1532\" y2=\"192\" stroke=\"#34d399\"/><rect x=\"1520\" y=\"130\" width=\"24\" height=\"46\" fill=\"#34d399\" stroke=\"#34d399\"/>\n      <line x1=\"1570\" y1=\"102\" x2=\"1570\" y2=\"178\" stroke=\"#34d399\"/><rect x=\"1558\" y=\"112\" width=\"24\" height=\"44\" fill=\"#34d399\" stroke=\"#34d399\"/>\n    </g>\n    <text x=\"1848\" y=\"188\" text-anchor=\"end\" font-size=\"40\" font-weight=\"700\" fill=\"#34d399\">+$1,284.62</text>\n    <text x=\"1848\" y=\"216\" text-anchor=\"end\" font-size=\"16\" fill=\"#f4587a\">max DD -$212.07</text>\n\n    <!-- kicker -->\n    <text x=\"960\" y=\"300\" text-anchor=\"middle\" font-size=\"23\" letter-spacing=\"7\" fill=\"#7c86a0\">ALPACA AI TRADING AGENTS HACKATHON</text>\n\n    <!-- wordmark -->\n    <text x=\"973\" y=\"535\" text-anchor=\"middle\" font-size=\"236\" font-weight=\"700\" letter-spacing=\"26\" fill=\"#6c8cff\" opacity=\"0.45\" filter=\"url(#softGlow)\">VERITAS</text>\n    <text x=\"973\" y=\"535\" text-anchor=\"middle\" font-size=\"236\" font-weight=\"700\" letter-spacing=\"26\" fill=\"#eef2ff\">VERITAS</text>\n    <rect x=\"660\" y=\"564\" width=\"600\" height=\"3\" fill=\"url(#ruleFade)\"/>\n    <rect x=\"951.5\" y=\"557\" width=\"17\" height=\"17\" fill=\"#6c8cff\" transform=\"rotate(45 960 565.5)\"/>\n\n    <!-- subtitle -->\n    <text x=\"960\" y=\"634\" text-anchor=\"middle\" font-size=\"46\" letter-spacing=\"1.5\" fill=\"#6c8cff\">Execution-Aware Options Agent</text>\n\n    <!-- divider -->\n    <line x1=\"780\" y1=\"672\" x2=\"920\" y2=\"672\" stroke=\"#2b3452\" stroke-width=\"2\"/>\n    <line x1=\"1000\" y1=\"672\" x2=\"1140\" y2=\"672\" stroke=\"#2b3452\" stroke-width=\"2\"/>\n\n    <!-- tagline -->\n    <text x=\"960\" y=\"712\" text-anchor=\"middle\" font-size=\"34\" fill=\"#98a2b8\">LLM proposes · math disposes</text>\n\n    <!-- pipeline caption -->\n    <text x=\"960\" y=\"790\" text-anchor=\"middle\" font-size=\"21\" letter-spacing=\"5\" fill=\"#6a748c\">// AUTONOMOUS DECISION LOOP</text>\n\n    <!-- feedback loop (execute -> snapshot) -->\n    <path d=\"M1574 866V946H346V876\" fill=\"none\" stroke=\"#47537c\" stroke-width=\"1.5\" stroke-dasharray=\"6 7\" opacity=\"0.9\"/>\n    <path d=\"M341 877L351 877L346 866Z\" fill=\"#47537c\"/>\n    <text x=\"960\" y=\"938\" text-anchor=\"middle\" font-size=\"14\" letter-spacing=\"2\" fill=\"#5c6784\">ack · feedback</text>\n\n    <!-- connectors -->\n    <g stroke=\"#3d4a70\" stroke-width=\"2\">\n      <line x1=\"517\" y1=\"839\" x2=\"578\" y2=\"839\"/>\n      <line x1=\"789\" y1=\"839\" x2=\"850\" y2=\"839\"/>\n      <line x1=\"1061\" y1=\"839\" x2=\"1122\" y2=\"839\"/>\n      <line x1=\"1333\" y1=\"839\" x2=\"1394\" y2=\"839\"/>\n    </g>\n    <g fill=\"#6c8cff\" opacity=\"0.85\">\n      <path d=\"M578 832l10 7-10 7z\"/>\n      <path d=\"M850 832l10 7-10 7z\"/>\n      <path d=\"M1122 832l10 7-10 7z\"/>\n      <path d=\"M1394 832l10 7-10 7z\"/>\n    </g>\n\n    <!-- nodes -->\n    <rect x=\"321\" y=\"812\" width=\"190\" height=\"54\" rx=\"10\" fill=\"#0f1626\" stroke=\"#2c3654\" stroke-width=\"1.5\"/>\n    <rect x=\"593\" y=\"812\" width=\"190\" height=\"54\" rx=\"10\" fill=\"#0f1626\" stroke=\"#2c3654\" stroke-width=\"1.5\"/>\n    <rect x=\"865\" y=\"812\" width=\"190\" height=\"54\" rx=\"10\" fill=\"#0f1626\" stroke=\"#2c3654\" stroke-width=\"1.5\"/>\n    <rect x=\"1137\" y=\"812\" width=\"190\" height=\"54\" rx=\"10\" fill=\"#0f1626\" stroke=\"#6c8cff\" stroke-width=\"1.5\"/>\n    <rect x=\"1409\" y=\"812\" width=\"190\" height=\"54\" rx=\"10\" fill=\"#0d1f19\" stroke=\"#34d399\" stroke-width=\"1.6\"/>\n\n    <text x=\"416\" y=\"847\" text-anchor=\"middle\" font-size=\"23\" letter-spacing=\"2\" fill=\"#c9d3ee\">SNAPSHOT</text>\n    <text x=\"688\" y=\"847\" text-anchor=\"middle\" font-size=\"23\" letter-spacing=\"2\" fill=\"#c9d3ee\">VALIDATE</text>\n    <text x=\"960\" y=\"847\" text-anchor=\"middle\" font-size=\"23\" letter-spacing=\"2\" fill=\"#c9d3ee\">SIZE</text>\n    <text x=\"1232\" y=\"847\" text-anchor=\"middle\" font-size=\"23\" letter-spacing=\"2\" fill=\"#c9d3ee\">RISK</text>\n    <text x=\"1504\" y=\"847\" text-anchor=\"middle\" font-size=\"23\" letter-spacing=\"2\" fill=\"#34d399\">EXECUTE</text>\n\n    <text x=\"416\" y=\"906\" text-anchor=\"middle\" font-size=\"15\" fill=\"#5c6784\">market state</text>\n    <text x=\"688\" y=\"906\" text-anchor=\"middle\" font-size=\"15\" fill=\"#5c6784\">schema · sanity</text>\n    <text x=\"960\" y=\"906\" text-anchor=\"middle\" font-size=\"15\" fill=\"#5c6784\">contracts</text>\n    <text x=\"1232\" y=\"906\" text-anchor=\"middle\" font-size=\"15\" fill=\"#5c6784\">greeks · limits</text>\n    <text x=\"1504\" y=\"906\" text-anchor=\"middle\" font-size=\"15\" fill=\"#5c6784\">order out</text>\n\n    <!-- bottom status line -->\n    <circle cx=\"90\" cy=\"1019\" r=\"5\" fill=\"#34d399\"/>\n    <circle cx=\"90\" cy=\"1019\" r=\"10\" fill=\"none\" stroke=\"#34d399\" stroke-opacity=\"0.35\"/>\n    <text x=\"112\" y=\"1025\" font-size=\"18\" letter-spacing=\"1.5\" fill=\"#7c86a0\">RISK LIMITS ARMED · GREEKS HEDGED</text>\n    <text x=\"1848\" y=\"1025\" text-anchor=\"end\" font-size=\"18\" letter-spacing=\"1.5\" fill=\"#7c86a0\">fills 128 · rejects 0 · latency 42 ms</text>\n\n  </g>\n</svg>"
+ },
+ "submission": {
+  "demo_platform": "GitHub Pages",
+  "demo_url": "https://akaheem.github.io/veritas-agent/dashboard/index.html",
+  "final_checklist": [
+   "Title: VERITAS — Execution-Aware Options Trading Agent",
+   "Short description: An autonomous Claude-powered agent that trades 0–7 DTE options credit spreads on Alpaca paper trading — and audits its own execution before risking a dollar. The LLM proposes; the math disposes.",
+   "Long description: paste the long_description text from this output (≈300 words; covers what it does, execution-aware differentiator, AI logic, risk gates, Alpaca integration)",
+   "Tags: AI Agents, Alpaca, Options Trading, Claude, MCP, Python, Algorithmic Trading, Risk Management, LLM, Autonomous Agents, Quant, Fintech",
+   "Cover image (16:9): [FILL] — upload a 16:9 image (e.g. 1920×1080 PNG); suggested: dashboard screenshot or repo banner",
+   "Video (≤5 min): [FILL] — link to a demo/pitch video of 5 minutes or less (YouTube or Vimeo URL)",
+   "Slides (PDF): [FILL] — upload or link the presentation PDF",
+   "GitHub repo URL: https://github.com/akaheem/veritas-agent (public, MIT license)",
+   "Demo platform: GitHub Pages",
+   "Demo URL: https://akaheem.github.io/veritas-agent/dashboard/index.html",
+   "Alpaca account ID: [FILL] — your Alpaca paper-trading account ID (from the Alpaca dashboard; this is the account number, not the API key ID)",
+   "Social post links (up to 5): [FILL] — up to 5 links to X/LinkedIn/Reddit/blog posts about VERITAS; enter N/A if none",
+   "Deadline: submit before Sep 4, 2026, 11:00 AM EDT"
+  ],
+  "long_description": "VERITAS is an autonomous AI trading agent that sells short-DTE (0–7 day) options credit spreads — bull puts and bear calls on SPY and QQQ — on Alpaca's paper-trading environment, running a complete loop (market analysis, opportunity detection, options selection, risk checks, execution, position management, P&L) with no human in the loop.\n\nIts differentiator is that it is execution-aware. Instead of trusting simulator fills, VERITAS treats the documented weaknesses of broker paper trading — liquidity-blind fills, real-time vs historical bar inconsistency, un-replaceable multi-leg orders, and assignment events never streamed over websockets — plus the numerical-hallucination weakness of LLMs themselves, as risks to model and guard against. A pre-trade execution-reality simulator applies a conservative slippage haircut, and any trade whose edge dies under pessimistic fills is never sent. The LLM proposes; the math disposes.\n\nThe AI logic is deliberately constrained. Every ~15 minutes the agent captures one logged market snapshot as the single source of truth, computes deterministic features (EMA20/50 trend, RSI-14, implied vs realized volatility), and builds a menu of the best liquid credit spreads with credit, width, max loss, breakeven, and post-slippage edge computed entirely by code. Claude (claude-sonnet-5) may only pick a menu item or abstain (NO_TRADE is always available) and must write a falsifiable thesis; it cannot invent strikes or prices — a deterministic validator recomputes every number from raw leg quotes before anything proceeds, so hallucinated economics cannot pass.\n\nRisk gates are hard limits enforced in code and not overridable by the LLM: $2,000 max loss per trade, a $2,000 daily-loss kill switch that flattens all positions, max 4 open spreads, portfolio heat ≤ 8% of equity, ≤ 5 contracts per leg, liquidity gates (OI ≥ 100, spread ≤ 30% of mid), a 10:00–15:00 ET entry window, and forced closes before expiry (0DTE flat by 15:30 ET). Exits trigger at 50% of credit (profit target) or 200% (stop).\n\nAlpaca integration: execution runs through the Alpaca MCP Server (alpaca-mcp-server via the official MCP Python SDK) submitting multi-leg net-credit limit orders, with alpaca-py for market data. Orders carry idempotent client_order_ids, are never replaced (cancel + fresh), and a 5-minute reconciliation loop polls broker positions and activities so broker state is truth — catching assignments Alpaca does not stream. Every decision is written to a replayable JSONL audit log and surfaced on a live GitHub Pages dashboard. Paper trading only — MIT-licensed and fully open source.",
+  "short_description": "An autonomous Claude-powered agent that trades 0–7 DTE options credit spreads on Alpaca paper trading — and audits its own execution before risking a dollar. The LLM proposes; the math disposes.",
+  "tags": [
+   "AI Agents",
+   "Alpaca",
+   "Options Trading",
+   "Claude",
+   "MCP",
+   "Python",
+   "Algorithmic Trading",
+   "Risk Management",
+   "LLM",
+   "Autonomous Agents",
+   "Quant",
+   "Fintech"
+  ],
+  "title": "VERITAS — Execution-Aware Options Trading Agent"
+ }
+}

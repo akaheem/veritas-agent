@@ -34,6 +34,7 @@ jobs:
         run: |
           pip install uv
           uv sync --frozen
+          uv pip install pytest
 
       - name: Reconcile + single cycle if stale
         env:
