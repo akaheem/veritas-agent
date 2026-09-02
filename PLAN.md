@@ -91,11 +91,13 @@
 - [ ] Smoke test → autonomous tmux run Sep 3 + Fri 9:30–11:00 ET
 - [ ] Account ID recorded
 
-### M9 — Submission Package — TODO
-- [ ] One-pager (AI logic / risk gates / Alpaca implementation)
-- [ ] Slides · video · cover image
-- [ ] ≤5 social posts DURING hackathon (deadline window closing — post today)
-- [ ] lablab.ai submission (draft early; deadline Sep 4 11:00 EDT)
+### M9 — Submission Package — DEVELOPING
+- [x] One-pager (docs/ONE-PAGER.md) — DEVELOPED
+- [x] Social posts ×5 (X+LinkedIn), video script 9 scenes, 10-slide deck, cover SVG — generated in submission/materials.json
+- [x] Cover image at assets/veritas_cover.svg
+- [ ] User: post social #1–2 TODAY (window closing)
+- [ ] Video recording + slides build (script + content ready)
+- [ ] lablab.ai draft submission (title/descriptions/tags in materials.json) — deadline Sep 4 11:00 EDT
 
 ---
 
