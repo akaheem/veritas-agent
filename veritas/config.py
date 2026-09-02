@@ -42,17 +42,23 @@ class Settings:
     cycle_seconds: int = int(_env("VERITAS_CYCLE_SECONDS", "900"))  # 15 min
     reconcile_seconds: int = 300  # broker-state reconciliation every 5 min
 
-    # --- Spread construction ---
-    dte_min: int = 0
-    dte_max: int = 7
+    # --- Spread construction (Master Plan v2: 1–5 DTE, 0DTE off by default) ---
+    dte_min: int = int(_env("VERITAS_DTE_MIN", "1"))  # 0DTE disabled unless explicitly enabled
+    dte_max: int = int(_env("VERITAS_DTE_MAX", "5"))
     short_delta_target: float = 0.30  # short-strike delta target
     width_target: float = 2.0  # dollars between strikes (auto-snaps to listed strikes)
     min_edge_ratio: float = 0.18  # credit / width must exceed this (18%)
 
-    # --- Execution reality model (pre-trade slippage haircut) ---
+    # --- Execution reality (Master Plan v2 §8: adaptive, not fixed 85%) ---
+    # entry price = f(Execution Confidence Score) — see veritas/execution.py
+    min_execution_confidence: int = 70  # below: rejected, recorded in shadow book
+    entry_credit_buffer: float = 0.85  # fallback only when no score computed
+    # conservative pre-trade haircut (validator's adjusted credit / max loss)
     slippage_per_leg: float = 0.01  # $ per contract per leg charged against credit
     slippage_ratio: float = 0.10  # additionally shave 10% of credit off the top
-    entry_credit_buffer: float = 0.85  # submit limit at >=85% of snapshot mid credit (indicative-data buffer)
+
+    # --- Correlated exposure (Master Plan v2 §7): SPY+QQQ are one bucket ---
+    max_correlated_exposure: float = 4_000.0  # combined max loss cap across underliers
 
     # --- Liquidity gates ---
     max_rel_spread: float = 0.30  # (ask-bid)/mid <= 30% on both legs
@@ -62,10 +68,12 @@ class Settings:
     # --- Risk gates (NOT LLM-overridable) ---
     max_loss_per_trade: float = 2_000.0  # 2% of $100k
     max_daily_loss: float = 2_000.0  # kill switch trigger
-    kill_switch_mode: str = _env("VERITAS_KILL_MODE", "close_all")  # or 'halt_new'
+    # Master Plan v2 §7: daily breach = halt new entries immediately; open
+    # positions keep their own stops + EOD force-close. close_all flattens now.
+    kill_switch_mode: str = _env("VERITAS_KILL_MODE", "halt_new")
     max_open_positions: int = 4
     max_portfolio_heat: float = 0.08  # sum(max_loss)/equity <= 8%
-    max_contracts_per_leg: int = 5
+    max_contracts_per_leg: int = int(_env("VERITAS_MAX_CONTRACTS", "3"))  # 1–3 for competition run (cap logic allows 5)
     max_notional_per_spread: float = 3_000.0  # width*100*contracts
     entry_window_et: tuple[str, str] = ("10:00", "15:00")
     force_close_et: str = "15:30"  # force-close 0DTE positions (never hold shorts into expiry)

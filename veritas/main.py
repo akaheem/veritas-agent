@@ -30,8 +30,10 @@ from .candidates import build_candidates
 from .config import NY_TZ, SETTINGS
 from .data import MarketData
 from .decision import DecisionCore
+from .execution import confidence_band, entry_credit_ratio, evaluate_confidence
 from .features import build_features
 from .models import cycle_id
+from .orderstate import OrderState, OrderStateMachine, map_status
 from .position import PositionManager
 from .risk import daily_pnl, evaluate, in_entry_window, should_force_close
 from .validator import validate
@@ -49,7 +51,12 @@ def parse_args() -> argparse.Namespace:
 
 
 async def _daily_kill_check(audit: AuditLog, data: MarketData, pm: PositionManager, cyc: str) -> bool:
-    """Kill switch evaluated EVERY cycle, independent of the LLM path."""
+    """Kill switch evaluated EVERY cycle, independent of the LLM path.
+
+    Master Plan v2 §7 default (halt_new): breach halts NEW entries immediately;
+    open positions remain under their own stops + EOD force-close. close_all
+    flattens now (used for watchdog safe-mode and explicit overrides).
+    """
     account = await asyncio.to_thread(data.trading.get_account)
     try:
         eq, last = float(account.equity), float(account.last_equity)
@@ -57,20 +64,49 @@ async def _daily_kill_check(audit: AuditLog, data: MarketData, pm: PositionManag
         return False
     pnl = round(eq - last, 2)
     if pnl <= -SETTINGS.max_daily_loss:
-        audit.write(cyc, "kill", trigger="daily_loss", pnl=pnl)
+        audit.write(cyc, "kill", trigger="daily_loss", pnl=pnl, mode=SETTINGS.kill_switch_mode)
         if SETTINGS.kill_switch_mode == "close_all":
-            await pm.broker.cancel_all_working() if pm.broker else None
+            if pm.broker:
+                await pm.broker.cancel_all_working()
             await pm.kill_switch_close_all(f"daily loss {pnl} breached ${SETTINGS.max_daily_loss}")
         return True
     return False
 
 
+async def _resolve_unknown_orders(broker: McpBroker | None, orders: OrderStateMachine, audit: AuditLog) -> None:
+    """UNKNOWN after timeout: query broker by client_order_id. Adopt found
+    orders into submitted state; only confirmed absence stays unresolved
+    (a fresh idempotent submit is then safe on the next cycle)."""
+    if broker is None:
+        return
+    for coid in orders.unresolved():
+        found = await broker.find_order_by_client_id(coid)
+        if found:
+            st = map_status(str(found.get("status", "")))
+            orders.transition(coid, st, "resolved via client_order_id query")
+            audit.write("orders", "unknown_resolved", coid=coid, broker_status=str(found.get("status", "")))
+        else:
+            audit.write("orders", "unknown_still_absent", coid=coid,
+                        note="not at broker; safe to resubmit with NEW coid next cycle")
+            # PENDING_SUBMIT (pre-submit timeout) may restart; UNKNOWN that the
+            # broker has never seen stays UNKNOWN for one more reconciliation.
+            rec = orders.orders.get(coid, {})
+            if rec.get("state") == OrderState.PENDING_SUBMIT.value:
+                orders.transition(coid, OrderState.REJECTED, "never reached broker")
+
+
 async def run_cycle(audit: AuditLog, data: MarketData, brain: DecisionCore,
-                    broker: McpBroker | None, pm: PositionManager, dry_run: bool) -> dict:
+                    broker: McpBroker | None, pm: PositionManager,
+                    orders: OrderStateMachine, dry_run: bool) -> dict:
     cyc = cycle_id()
+    feed = getattr(data, "feed_name", SETTINGS.data_feed)
+
     # 0) kill switch first — every cycle, regardless of the LLM
     if await _daily_kill_check(audit, data, pm, cyc):
         return {"cycle": cyc, "status": "kill_switch_fired"}
+
+    # 0a) resolve UNKNOWN orders before anything else (never resubmit blind)
+    await _resolve_unknown_orders(broker, orders, audit)
 
     # 0b) position management (profit-take / stop / force-close) every cycle
     marks = await pm.fetch_mark_costs() if broker else {}
@@ -114,16 +150,41 @@ async def run_cycle(audit: AuditLog, data: MarketData, brain: DecisionCore,
     if not report.passed or report.corrected is None:
         return {"cycle": cyc, "status": "no_trade", "why": report.failures or "NO_TRADE"}
 
-    # 6) risk gates (hard limits) — include working-order risk
+    # 6) Execution Reality Layer (Master Plan v2 §8): score → band → adaptive price
     spread = report.corrected
-    filled_leg_syms = {p.get("symbol") for p in snap.positions}
-    opt_positions = [p for p in snap.positions if any(leg.symbol in filled_leg_syms for leg in [])]
+    exec_score, exec_factors = evaluate_confidence(spread, feed)
+    band = confidence_band(exec_score)
+    audit.write(cyc, "execution_reality", score=exec_score, band=band,
+                factors=exec_factors, feed=feed)
+    if band == "reject":
+        # shadow book: valid candidate, risk-worthy, but execution quality too low
+        audit.write(cyc, "shadow_reject", legs=[l.symbol for l in spread.legs],
+                    score=exec_score, factors=exec_factors)
+        return {"cycle": cyc, "status": "rejected_by_execution", "score": exec_score}
+    credit_ratio = entry_credit_ratio(exec_score)
+
+    # 7) risk gates (hard limits) — working orders + correlation + confidence
+    working_orders = await broker.get_open_veritas_orders() if broker else []
+    working_count = len(working_orders)
+    working_heat = sum(o.get("adjusted_max_loss", 0.0) for o in working_orders)
+    groups: dict[str, float] = {}
+    for o in working_orders:
+        u = str(o.get("underlier", ""))
+        if u:
+            groups[u] = groups.get(u, 0.0) + float(o.get("adjusted_max_loss", 0.0))
+    for tag, info in pm.open_spreads.items():
+        u = str(info.get("spread", {}).get("underlier", ""))
+        if u:
+            groups[u] = groups.get(u, 0.0) + float(info.get("spread", {}).get("adjusted_max_loss", 0.0))
+
     n_spread_units = _count_spread_units(snap.positions) + working_count
     verdict = evaluate(
         spread, snap.account, snap.positions, pnl_today,
         unrealized_heat=_option_heat(snap.positions) + working_heat,
         position_units=n_spread_units,
         entry_ok=in_entry_window(),
+        execution_confidence=exec_score,
+        open_spread_groups=groups,
     )
     audit.write(cyc, "risk", verdict=verdict.model_dump(), working_orders=working_count)
     if verdict.kill_switch and SETTINGS.kill_switch_mode == "close_all" and broker:
@@ -133,17 +194,26 @@ async def run_cycle(audit: AuditLog, data: MarketData, brain: DecisionCore,
     if not verdict.approved:
         return {"cycle": cyc, "status": "blocked_by_risk", "why": verdict.failures}
 
-    # 7) execution via MCP (or dry run)
+    # 8) execution via MCP (or dry run) — adaptive credit price
     if dry_run or broker is None:
         audit.write(cyc, "execution", action="dry_run_skipped",
                     legs=[l.symbol for l in spread.legs],
-                    credit=spread.credit, contracts=spread.contracts)
+                    credit=spread.credit, contracts=spread.contracts,
+                    exec_score=exec_score, credit_ratio=credit_ratio)
         return {"cycle": cyc, "status": "dry_run"}
 
-    r = await broker.open_credit_spread(spread, idem_tag=cyc)
+    coid = f"veritas-open-{cyc}-{__import__('uuid').uuid4().hex[:8]}"
+    orders.register(coid)
+    r = await broker.open_credit_spread(spread, idem_tag=cyc, credit_ratio=credit_ratio)
+    if not r.get("ok") and "timeout" in str(r.get("error", "")).lower():
+        # UNKNOWN state: order MAY exist — reconciliation loop will resolve by coid
+        orders.on_timeout(coid)
+        audit.write(cyc, "order_unknown", coid=coid)
+        return {"cycle": cyc, "status": "order_unknown", "coid": coid}
     audit.write(cyc, "execution", submit_result=r)
     if r.get("ok"):
         order = r.get("data", {}) if isinstance(r.get("data"), dict) else {}
+        orders.transition(coid, map_status(str(order.get("status", ""))), "open submit ok")
         order_id = str(order.get("id", "unknown"))
         tag = pm.register_open(spread, order_id)
         if broker:
@@ -174,13 +244,16 @@ def _option_heat(positions: list[dict]) -> float:
     return total
 
 
-async def reconcile_loop(pm: PositionManager, broker: McpBroker | None, stop: asyncio.Event) -> None:
-    """Every 5 min: reconcile + manage — survives cycles, catches 0DTE deadlines."""
+async def reconcile_loop(pm: PositionManager, broker: McpBroker | None,
+                         orders: OrderStateMachine, stop: asyncio.Event) -> None:
+    """Every 5 min: reconcile + manage + order-state resolution."""
     while not stop.is_set():
         try:
             marks = await pm.fetch_mark_costs() if broker else {}
             await pm.manage(marks)
             await pm.reconcile()
+            if broker:
+                await _resolve_unknown_orders(broker, orders, pm.audit)
         except Exception as e:  # noqa: BLE001
             log.warning("reconcile error: %s", e)
             pm.audit.write("reconcile", "error", error=str(e))
@@ -205,6 +278,7 @@ async def main_loop(args: argparse.Namespace) -> None:
     data = MarketData(audit)
     brain = DecisionCore()
     pm = PositionManager(audit, broker=None)  # broker attached below
+    orders = OrderStateMachine()
 
     problems = SETTINGS.validate()
     if problems:
@@ -217,10 +291,10 @@ async def main_loop(args: argparse.Namespace) -> None:
     async with McpBroker(audit) as broker:
         pm.broker = broker
         stop = asyncio.Event()
-        recon = asyncio.create_task(reconcile_loop(pm, broker, stop))
+        recon = asyncio.create_task(reconcile_loop(pm, broker, orders, stop))
         try:
             if args.once:
-                out = await run_cycle(audit, data, brain, broker, pm, dry_run=args.dry_run)
+                out = await run_cycle(audit, data, brain, broker, pm, orders, dry_run=args.dry_run)
                 print(json.dumps(out, indent=2, default=str))
             elif args.loop:
                 while not stop.is_set():
@@ -233,7 +307,7 @@ async def main_loop(args: argparse.Namespace) -> None:
                             log.info("EOD done — sleeping %.0f min until next open", wait_s / 60)
                             await asyncio.sleep(min(wait_s, 3600))
                             continue
-                        await run_cycle(audit, data, brain, broker, pm, dry_run=args.dry_run)
+                        await run_cycle(audit, data, brain, broker, pm, orders, dry_run=args.dry_run)
                     except asyncio.CancelledError:
                         raise
                     except Exception as e:  # noqa: BLE001 — one bad cycle must not kill the run

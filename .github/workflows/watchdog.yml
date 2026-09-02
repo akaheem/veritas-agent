@@ -1,10 +1,8 @@
-# GitHub Actions watchdog — recovery executor when the Codespace dies.
+# GitHub Actions watchdog — RECOVERY ONLY (Master Plan v2 ownership rule).
 #
-# Runs every 15 min during US market hours on trading days. Reads the paper
-# account via alpaca-py (repo secrets); if the market is open and the agent
-# has not committed fresh state recently, re-runs one agent cycle in Actions.
-#
-# Actions does NOT keep a codespace alive — backup executor, not a keep-alive.
+# Verifies broker reachability and dashboard freshness; re-runs at most one
+# dry-run reconciliation cycle if state is stale. It NEVER opens positions
+# (halt_new is forced) and never runs a second strategy brain.
 
 name: veritas-watchdog
 
@@ -36,12 +34,12 @@ jobs:
           uv sync --frozen
           uv pip install pytest
 
-      - name: Reconcile + single cycle if stale
+      - name: Reconcile only (recovery, never trades)
         env:
           ALPACA_API_KEY: ${{ secrets.ALPACA_API_KEY }}
           ALPACA_API_SECRET: ${{ secrets.ALPACA_API_SECRET }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          VERITAS_KILL_MODE: halt_new   # watchdog never opens new risk autonomously
+          VERITAS_KILL_MODE: halt_new   # ownership rule: watchdog cannot trade
         run: |
           uv run python tools/watchdog_check.py
           if [ -f .watchdog_run_cycle ]; then

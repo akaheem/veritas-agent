@@ -38,7 +38,15 @@ def evaluate(
     unrealized_heat: float,
     position_units: int | None = None,
     entry_ok: bool | None = None,
+    execution_confidence: int | None = None,
+    open_spread_groups: dict[str, float] | None = None,
 ) -> RiskVerdict:
+    """Master Plan v2 §7 gates. Hard limits; the LLM cannot override.
+
+    open_spread_groups: {"SPY": max_loss_total, "QQQ": ...} incl. working
+    orders — used for the correlated-exposure gate (SPY+QQQ move together,
+    so their combined max loss is capped, not just per-trade).
+    """
     gates: dict[str, bool] = {}
     failures: list[str] = []
     equity = (account or {}).get("equity", 0.0) or 0.0
@@ -70,6 +78,22 @@ def evaluate(
     gates["portfolio_heat"] = heat <= SETTINGS.max_portfolio_heat
     if not gates["portfolio_heat"]:
         failures.append(f"portfolio heat {heat:.1%} > {SETTINGS.max_portfolio_heat:.0%}")
+
+    # correlated exposure: SPY/QQQ rise and fall together — combined cap
+    groups = dict(open_spread_groups or {})
+    groups[spread.underlier] = groups.get(spread.underlier, 0.0) + spread.adjusted_max_loss
+    correlated_total = sum(groups.values())
+    gates["correlated_exposure"] = correlated_total <= SETTINGS.max_correlated_exposure
+    if not gates["correlated_exposure"]:
+        failures.append(
+            f"correlated exposure ${correlated_total:.0f} > ${SETTINGS.max_correlated_exposure:.0f}"
+        )
+
+    # execution confidence gate (Master Plan v2 §8)
+    if execution_confidence is not None:
+        gates["execution_confidence"] = execution_confidence >= SETTINGS.min_execution_confidence
+        if not gates["execution_confidence"]:
+            failures.append(f"execution confidence {execution_confidence} < {SETTINGS.min_execution_confidence}")
 
     gates["notional_cap"] = spread.width * 100 * spread.contracts <= SETTINGS.max_notional_per_spread
     if not gates["notional_cap"]:

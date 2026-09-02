@@ -27,3 +27,6 @@ Thumbs.db
 # Data caches
 cache/
 .firecrawl/
+
+# runtime state
+data/
