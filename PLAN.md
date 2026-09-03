@@ -105,10 +105,12 @@ Adopted amendments — all committed (feat: Master Plan v2 amendments):
 - [x] LIVE: https://akaheem.github.io/veritas-agent/dashboard/index.html
 - [ ] User's custom UI design still pending — swap-in when provided
 
-### M8 — Fresh $100k Competition Account + Autonomous Run — TODO
-- [ ] User: create new paper account (defaults to exactly $100k), new keys, verify ACTIVE + options level 3
-- [ ] Smoke test → autonomous tmux run Sep 3 + Fri 9:30–11:00 ET
-- [ ] Account ID recorded
+### M8 — Fresh $100k Competition Account + Autonomous Run — DEVELOPING
+- [x] Dev-account preflight PASSED on live Codespace (ACTIVE, level 3, $100k, MCP round-trip PASS)
+- [x] tmux installed; session `veritas` created
+- [ ] User: create NEW paper account (defaults to exactly $100k), new keys, verify ACTIVE + options level 3
+- [ ] `--competition` preflight on fresh account → record PA... account ID
+- [ ] Fri 9:30 ET: autonomous tmux run (window 9:30–11:00 only)
 
 ### M9 — Submission Package — DEVELOPING
 - [x] One-pager (docs/ONE-PAGER.md) — DEVELOPED
