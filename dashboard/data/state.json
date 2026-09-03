@@ -1,1 +1,9 @@
-{"updated_at": null, "equity": null, "daily_pnl": 0.0, "trades_today": 0, "risk_blocks_today": 0, "n_events_today": 0, "decisions": []}
+{
+ "updated_at": "2026-09-03T20:17:38.896759+00:00",
+ "equity": null,
+ "daily_pnl": 0.0,
+ "trades_today": 0,
+ "risk_blocks_today": 0,
+ "decisions": [],
+ "n_events_today": 66
+}
