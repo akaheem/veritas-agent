@@ -58,7 +58,9 @@ async def main(competition: bool) -> int:
     # account + clock + positions via alpaca-py
     try:
         acct = data.trading.get_account()
-        check("account status ACTIVE", str(acct.status) == "ACTIVE", f"status={acct.status}")
+        # AccountStatus enum str()s as "AccountStatus.ACTIVE" — compare robustly
+        status_str = str(getattr(acct, "status", "")).split(".")[-1].upper()
+        check("account status ACTIVE", status_str == "ACTIVE", f"status={status_str}")
         level = int(getattr(acct, "options_trading_level", 0) or 0)
         check("options level >= 3 (spreads)", level >= 3, f"level={level}")
         eq = float(acct.equity)

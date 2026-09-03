@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -31,6 +32,28 @@ TOOLSETS_ENV = {"ALPACA_TOOLSETS": "account,trading,options-data,stock-data,asse
 CALL_TIMEOUT = timedelta(seconds=45)  # hard cap: a hung subprocess stalls nothing
 
 
+def _resolve_server_command() -> str:
+    """Locate the alpaca-mcp-server executable without depending on PATH.
+
+    `uv run` puts venv scripts on PATH for the main process, but the MCP
+    stdio subprocess gets an allow-listed env — so resolve the absolute
+    venv path at broker construction time.
+    """
+    import os
+    import shutil
+    import sys
+
+    found = shutil.which(SERVER_CMD)
+    if found:
+        return found
+    candidate = Path(sys.executable).parent / SERVER_CMD
+    if candidate.exists():
+        return str(candidate)
+    # last resort: venv bin dir next to the running interpreter
+    venv_bin = Path(sys.executable).parent
+    return str(venv_bin / SERVER_CMD)
+
+
 class McpBroker:
     """Thin async wrapper. Holds one MCP session open for the whole loop."""
 
@@ -38,8 +61,9 @@ class McpBroker:
         self.audit = audit
         self._session: ClientSession | None = None
         self._streams = None
+        server_cmd = _resolve_server_command()
         self._params = StdioServerParameters(
-            command=SERVER_CMD,
+            command=server_cmd,
             args=[],
             env={
                 "ALPACA_API_KEY": SETTINGS.alpaca_api_key,
@@ -47,9 +71,10 @@ class McpBroker:
                 "ALPACA_PAPER_TRADE": "true",
                 **TOOLSETS_ENV,
                 "PATH": "/usr/local/bin:/usr/bin:/bin",
-                "HOME": "/home/vscode",
+                "HOME": os.environ.get("HOME", "/home/vscode"),
             },
         )
+        self.audit.write("mcp", "server_command", command=server_cmd)
 
     async def __aenter__(self) -> "McpBroker":
         self._streams = stdio_client(self._params)

@@ -2,7 +2,8 @@
   "name": "veritas-agent",
   "image": "mcr.microsoft.com/devcontainers/python:3.11",
   "features": {
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/sshd:1": {}
   },
   "hostRequirements": {
     "cpus": 2,
@@ -18,7 +19,7 @@
       ]
     }
   },
-  "postCreateCommand": "pip install uv && uv sync",
+  "postCreateCommand": "sudo apt-get update -qq && sudo apt-get install -y -qq tmux && pip install uv && uv sync",
   "remoteEnv": {
     "PYTHONUNBUFFERED": "1"
   }
