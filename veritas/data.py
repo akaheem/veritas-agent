@@ -125,13 +125,26 @@ class MarketData:
         # options chains: snapshots (quotes/greeks/IV) + contracts (open interest)
         for sym in req_symbols:
             try:
-                chain = self.option_hist.get_option_chain(OptionChainRequest(symbol_or_symbols=sym))
+                # NOTE: OptionChainRequest takes underlying_symbol (NOT symbol_or_symbols)
+                # and defaults to a tiny filtered chain; request full 1-5 DTE window.
+                chain = self.option_hist.get_option_chain(
+                    OptionChainRequest(
+                        underlying_symbol=sym,
+                        expiration_date_gte=utcnow().date(),
+                        expiration_date_lte=utcnow().date() + timedelta(days=SETTINGS.dte_max + 2),
+                    )
+                )
                 rows = chain[sym] if isinstance(chain, dict) and sym in chain else []
                 oi_map: dict[str, int] = {}
                 vol_map: dict[str, int] = {}
                 try:
                     contracts = self.trading.get_option_contracts(
-                        GetOptionContractsRequest(underlying_symbols=[sym], limit=500)
+                        GetOptionContractsRequest(
+                            underlying_symbols=[sym],
+                            expiration_date_gte=utcnow().date(),
+                            expiration_date_lte=utcnow().date() + timedelta(days=SETTINGS.dte_max + 2),
+                            limit=500,
+                        )
                     )
                     for c in contracts.option_contracts if hasattr(contracts, "option_contracts") else contracts:
                         oi_map[str(c.symbol)] = int(getattr(c, "open_interest", 0) or 0)

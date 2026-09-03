@@ -83,7 +83,10 @@ async def main(competition: bool) -> int:
 
     # snapshot: chains + feed identity + freshness
     snap = data.capture()
-    chains_ok = all("error" not in snap.chains.get(s, [{"error": 1}])[0] for s in SETTINGS.underliers)
+    chains_ok = all(
+        len(snap.chains.get(s, [])) > 0 and "error" not in snap.chains.get(s, [{"error": 1}])[0]
+        for s in SETTINGS.underliers
+    )
     check("option chain snapshot", chains_ok,
           "; ".join(f"{k}={len(v)}" for k, v in snap.chains.items()))
     check("feed identity logged", bool(SETTINGS.data_feed), f"feed={SETTINGS.data_feed}"
@@ -95,7 +98,7 @@ async def main(competition: bool) -> int:
     check("features computed", len(feats) > 0, f"n={len(feats)}")
     check("candidates generated", len(cands) > 0,
           f"n={len(cands)}; DTE window [{SETTINGS.dte_min},{SETTINGS.dte_max}]" if cands else
-          "none right now (may be legitimate — market conditions)")
+          "none right now (may be legitimate — market conditions; verify chain row count above)")
 
     # LLM structured output
     try:
@@ -104,7 +107,7 @@ async def main(competition: bool) -> int:
         check("LLM decision parses", True,
               f"action={prop.action} thesis='{(prop.thesis or '')[:60]}'")
     except Exception as e:  # noqa: BLE001
-        check("LLM decision parses", False, f"{type(e).__name__}: {str(e)[:100]}")
+        check("LLM decision parses", False, f"{type(e).__name__}: {str(e)[:200]}")
 
     # MCP server round-trip
     async with McpBroker(audit) as broker:
