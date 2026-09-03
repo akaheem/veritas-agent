@@ -134,7 +134,11 @@ class MarketData:
                         expiration_date_lte=utcnow().date() + timedelta(days=SETTINGS.dte_max + 2),
                     )
                 )
-                rows = chain[sym] if isinstance(chain, dict) and sym in chain else []
+                rows = (
+                    list(chain.values())
+                    if isinstance(chain, dict) and chain and not isinstance(next(iter(chain.values())), list)
+                    else (chain[sym] if isinstance(chain, dict) and sym in chain else [])
+                )
                 oi_map: dict[str, int] = {}
                 vol_map: dict[str, int] = {}
                 try:

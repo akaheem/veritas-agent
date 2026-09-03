@@ -28,5 +28,6 @@ Thumbs.db
 cache/
 .firecrawl/
 
-# runtime state
-data/
+# runtime state (agent state files are machine-local)
+data/*
+!data/.gitkeep
