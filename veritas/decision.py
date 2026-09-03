@@ -150,7 +150,13 @@ class DecisionCore:
                 messages=[{"role": "user", "content": user}],
             )
         except Exception as e:  # noqa: BLE001 — API errors must not kill the loop
-            return fallback(f"api_error:{type(e).__name__}")
+            # surface the reason (auth/credit/model-name) in the audit trail + logs
+            detail = ""
+            if hasattr(e, "body") and e.body:
+                detail = str(e.body)[:300]
+            elif hasattr(e, "message"):
+                detail = str(e.message)[:300]
+            return fallback(f"api_error:{type(e).__name__}:{detail or str(e)[:200]}")
 
         text, mode = self._extract_text(resp)
         data = self._parse_json(text) if text else None
