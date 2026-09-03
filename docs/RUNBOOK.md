@@ -53,6 +53,16 @@ uv run python tools/preflight.py --competition
 7. **Record the account ID** (starts `PA...` — shown on the dashboard and in the
    preflight output). You must paste it into the lablab submission form.
 
+### Step 6b — Update an EXISTING codespace after pulling fixes
+If fixes were pushed while your codespace was running:
+```bash
+git pull
+uv sync                      # pick up dependency changes
+# tmux missing? install once:
+sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+```
+(The devcontainer now installs tmux automatically for NEW codespaces.)
+
 ### Step 7 — Launch the autonomous session (tmux) — ~2 min
 ```bash
 uv run python -m veritas.main --mode paper --loop --dry-run   # rehearsal first
