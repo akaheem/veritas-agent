@@ -12,13 +12,13 @@
 - `RESUME FROM` always points to the exact next action. Update it EVERY time work stops.
 - Mirrored in session task tracker as tasks M0–M9.
 
-## RESUME FROM (Sep 3 night — user PC restart; full state also in session memory)
-→ 1. `git pull && uv sync` in the Codespace (chain-rows fix + gitignore fix + LLM error-body fix)
-→ 2. Diagnose LLM `api_error:BadRequestError` (error body now surfaced; run the Anthropic diagnostic one-liner)
-→ 3. Create FRESH $100k competition account → new keys → update Codespace secrets → restart codespace → `uv run python tools/preflight.py --competition` → record PA... account ID
-→ 4. Fri 9:30 ET: `tmux attach -t veritas` → `--loop` → detach. ~10:45: export dashboard, commit, push.
-→ 5. Fill lablab form (submission/materials.json) + video/slides/cover → SUBMIT BEFORE 11:00 AM EDT
-→ 6. Social posts #1–5 drafted in submission/materials.json — NONE POSTED YET; post at least 1–2 before deadline (they must exist during the hackathon)
+## RESUME FROM (Sep 4, launch morning — 9:09 ET at resume; open 9:30, deadline 11:00 ET)
+→ 1. NOW: fix Anthropic credits (BadRequestError 400 ⇒ almost certainly credit balance): platform.claude.com → Billing → buy $10 → verify with the one-liner
+→ 2. NOW (parallel): fresh $100k account → new keys → Codespace secrets → restart codespace (~15 min)
+→ 3. ~9:40: `git pull && uv sync` → `uv run python tools/preflight.py --competition` → record PA... ID
+→ 4. ~9:55: tmux attach -t veritas → `--mode paper --loop` (entries gated until 10:00 window — safe)
+→ 5. ~10:45: export dashboard, commit, push. Post social #5 (deadline-day, pre-drafted) + 1 more.
+→ 6. By 10:45: fill lablab form from submission/materials.json → SUBMIT WELL BEFORE 11:00 ET. Video/slides only if form requires.
 
 ## MASTER PLAN v2 STATUS (Sep 3)
 Adopted amendments — all committed (feat: Master Plan v2 amendments):
