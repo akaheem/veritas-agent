@@ -68,10 +68,18 @@
 <script>
 const fmt$ = v => v == null ? "—" : "$" + Number(v).toLocaleString(undefined, {maximumFractionDigits: 2});
 const cls = v => v > 0 ? "pos" : v < 0 ? "neg" : "";
+// timestamps render as DD-MM-YYYY HH:MM (24h) in UTC, regardless of viewer locale
+const p2 = n => String(n).padStart(2, "0");
+const fmtDT = iso => {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso);
+  return `${p2(d.getUTCDate())}-${p2(d.getUTCMonth() + 1)}-${d.getUTCFullYear()} ${p2(d.getUTCHours())}:${p2(d.getUTCMinutes())}`;
+};
 fetch("data/state.json?v=" + Date.now())
   .then(r => r.json())
   .then(s => {
-    document.getElementById("updated").textContent = "updated " + (s.updated_at || "never");
+    document.getElementById("updated").textContent = "updated " + fmtDT(s.updated_at) + " UTC";
     document.getElementById("equity").textContent = fmt$(s.equity);
     const pnl = document.getElementById("pnl");
     pnl.textContent = fmt$(s.daily_pnl);
@@ -82,7 +90,7 @@ fetch("data/state.json?v=" + Date.now())
     document.getElementById("events").textContent = s.n_events_today ?? "—";
     const rows = (s.decisions || []).slice().reverse().map(d => `
       <tr>
-        <td>${(d.ts || "").replace("T", " ").slice(0, 19)}</td>
+        <td>${fmtDT(d.ts)}</td>
         <td><span class="badge ${d.action === "PROPOSE" ? "ok" : "hold"}">${d.action || "—"}</span></td>
         <td>${d.confidence != null ? (d.confidence * 100).toFixed(0) + "%" : "—"}</td>
         <td><span class="badge ${d.validation ? "ok" : "no"}">${d.validation === null ? "—" : (d.validation ? "PASS" : "FAIL")}</span></td>
