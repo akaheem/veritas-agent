@@ -12,13 +12,11 @@
 - `RESUME FROM` always points to the exact next action. Update it EVERY time work stops.
 - Mirrored in session task tracker as tasks M0–M9.
 
-## RESUME FROM (Sep 4, launch morning — 9:09 ET at resume; open 9:30, deadline 11:00 ET)
-→ 1. NOW: fix Anthropic credits (BadRequestError 400 ⇒ almost certainly credit balance): platform.claude.com → Billing → buy $10 → verify with the one-liner
-→ 2. NOW (parallel): fresh $100k account → new keys → Codespace secrets → restart codespace (~15 min)
-→ 3. ~9:40: `git pull && uv sync` → `uv run python tools/preflight.py --competition` → record PA... ID
-→ 4. ~9:55: tmux attach -t veritas → `--mode paper --loop` (entries gated until 10:00 window — safe)
-→ 5. ~10:45: export dashboard, commit, push. Post social #5 (deadline-day, pre-drafted) + 1 more.
-→ 6. By 10:45: fill lablab form from submission/materials.json → SUBMIT WELL BEFORE 11:00 ET. Video/slides only if form requires.
+## RESUME FROM (Sep 5 — SUBMITTED ✅ before Sep 4 11:00 ET deadline; judging pending)
+→ 1. Check lablab form editability: account ID submitted as UUID e23cc7f5-cdc1-4655-9141-6ff0c560b378 — the form asked for the ACCOUNT NUMBER (PA...). If edits still allowed, verify/fix. Also confirm which account it was (fresh competition vs dev).
+→ 2. Final dashboard export + push (judges click the submitted demo link).
+→ 3. Repo FROZEN during judging — no code pushes. 12 confirmed audit defects documented as post-competition learnings only.
+→ 4. tmux session killed / Codespace stopped to save core-hours.
 
 ## MASTER PLAN v2 STATUS (Sep 3)
 Adopted amendments — all committed (feat: Master Plan v2 amendments):

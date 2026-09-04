@@ -27,9 +27,23 @@ def main() -> None:
     pnl_events = by_stage.get("pnl_context", [])
     equity = pnl_events[-1]["payload"].get("equity") if pnl_events else None
     daily_pnl = pnl_events[-1]["payload"].get("daily_pnl") if pnl_events else 0.0
+    if equity is None:
+        # loop hasn't run yet today — fall back to the live account so the
+        # dashboard never shows "null equity" to a visitor
+        try:
+            from alpaca.trading.client import TradingClient
+
+            tc = TradingClient(SETTINGS.alpaca_api_key, SETTINGS.alpaca_api_secret, paper=True)
+            acct = tc.get_account()
+            equity = float(acct.equity)
+            daily_pnl = round(equity - float(acct.last_equity or equity), 2)
+        except Exception:  # noqa: BLE001 — dashboard must export even if the API is down
+            pass
 
     executions = [
-        e for e in by_stage.get("execution", []) if e["payload"].get("submit_result", {}).get("ok")
+        e for e in by_stage.get("execution", [])
+        if e["payload"].get("submit_result", {}).get("ok")
+        or e["payload"].get("action") == "dry_run_skipped"
     ]
     risk_blocks = [
         e for e in by_stage.get("risk", [])
