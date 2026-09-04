@@ -150,21 +150,8 @@ class PositionManager:
             long_q = await self.broker.call("get_option_latest_quote", {"symbol_or_symbols": legs[1]["symbol"]})
             if not (short_q.get("ok") and long_q.get("ok")):
                 continue
-
-            def _mid(qr) -> float | None:
-                d = qr.get("data")
-                if isinstance(d, dict):
-                    d = d.get(legs[0]["symbol"]) if "symbol" not in d else d
-                    q = d.get("latest_quote") or d if isinstance(d, dict) else {}
-                    bp, ap = q.get("bid_price", q.get("bp")), q.get("ask_price", q.get("ap"))
-                    try:
-                        if bp is not None and ap is not None:
-                            return (float(bp) + float(ap)) / 2
-                    except (TypeError, ValueError):
-                        return None
-                return None
-
-            m_short, m_long = _mid(short_q), _mid(long_q)
+            m_short = _leg_mid(short_q, legs[0]["symbol"])
+            m_long = _leg_mid(long_q, legs[1]["symbol"])
             if m_short is not None and m_long is not None:
                 # closing a credit spread costs (short_mid - long_mid) per share
                 marks[tag] = round(max(m_short - m_long, 0.01), 2)
@@ -178,6 +165,11 @@ class PositionManager:
         et = _et_now()
         force_all = (et.hour, et.minute) >= tuple(map(int, SETTINGS.force_close_all_et.split(":")))
         for tag, info in list(self.open_spreads.items()):
+            # a close order is already working (or the tag is already closing/
+            # closed): never submit a second one — duplicate mleg closes were a
+            # confirmed defect (fresh client_order_id each call, no dedupe)
+            if info.get("status") in ("close_submitted", "close_accepted", "closed"):
+                continue
             spread_d = info["spread"]
             spread = SpreadCandidate(**spread_d)
             credit = info.get("entry_credit")
@@ -203,26 +195,46 @@ class PositionManager:
                 self.audit.write("position", "close_submitted", tag=tag, reason=reason, result=_ok(r))
                 if _ok(r):
                     actions.append({"tag": tag, "reason": reason, "status": "close_accepted"})
-                    # NOTE: tag is NOT dropped here — reconciliation drops it when
-                    # the closing order FILLS (accepted != filled).
+                    # persist: reconcile() drops the tag only once this close
+                    # FILLS (legs vanish at the broker) — but marking close state
+                    # here stops manage() from re-submitting every 5-min tick
+                    info["status"] = "close_submitted"
+                    self._save()
         return actions
 
     async def reconcile(self, positions: list[dict] | None = None) -> dict:
         """Broker is truth. Called every 5 min. Adopts unknowns; drops tags whose
-        legs no longer exist at the broker (fills confirmed)."""
+        legs no longer exist at the broker (fills confirmed).
+
+        An empty/failed broker read is NOT treated as a flat book (confirmed
+        defect: a transient MCP error would have dropped every filled tag)."""
         if self.broker is None:
             return {"error": "no broker"}
-        positions = positions if positions is not None else await self.broker.get_positions()
+        if positions is None:
+            positions = await self.broker.get_positions()
+            if not positions:
+                # empty list may mean "flat book" OR "broker read failed" —
+                # verify with a second read before treating anything as truth
+                positions = await self.broker.get_positions()
+                if not positions:
+                    self.audit.write("reconcile", "empty_book_ambiguity",
+                                     note="two consecutive empty position reads; adopting nothing, dropping nothing")
+                    # still safe: adopt pass below sees no unknowns; drops are skipped
         broker_syms = {str(p.get("symbol")) for p in positions if parse_occ(str(p.get("symbol", "")))}
         self.adopt_broker_positions([p for p in positions if parse_occ(str(p.get("symbol", "")))])
         dropped = []
         for tag, info in list(self.open_spreads.items()):
             leg_syms = {leg["symbol"] for leg in info["spread"]["legs"]}
-            if info.get("status") == "close_accepted" and not (leg_syms & broker_syms):
+            if info.get("status") in ("close_submitted", "close_accepted") and not (leg_syms & broker_syms):
                 dropped.append(tag)  # closing order fully filled
                 self.drop(tag)
             elif not info.get("adopted") and info.get("status") == "filled" and not (leg_syms & broker_syms):
                 # open order never filled and vanished -> drop silently-but-logged
+                dropped.append(tag)
+                self.drop(tag)
+            elif not info.get("adopted") and info.get("status") in ("submitted", "close_submitted") and leg_syms and not (leg_syms & broker_syms):
+                # tracked legs entirely absent while order still "submitted":
+                # open never filled and expired/cancelled at the broker
                 dropped.append(tag)
                 self.drop(tag)
         activities = await self.broker.get_activities()
@@ -245,6 +257,9 @@ class PositionManager:
         if self.broker is None:
             return {"reason": reason, "error": "no broker"}
         positions = await self.broker.get_positions()
+        # kill/close-all is a flatten command — an ambiguous empty read must not
+        # silently no-op it, but the flatten loop below iterates TRACKED spreads;
+        # adopt first (as before), then close every tracked + adopted group.
         self.adopt_broker_positions(positions)
         for tag, info in list(self.open_spreads.items()):
             spread = SpreadCandidate(**info["spread"])
@@ -258,3 +273,29 @@ class PositionManager:
 
 def _ok(r: dict) -> dict:
     return {"ok": r.get("ok", False), "error": r.get("error", "") if not r.get("ok") else ""}
+
+
+def _leg_mid(qr: dict, leg_symbol: str) -> float | None:
+    """Extract a leg mid from an MCP get_option_latest_quote result.
+
+    The tool returns either {SYMBOL: {...}} keyed per contract or a flat
+    quote object — handle both, and use the LEG'S OWN symbol as the lookup
+    key (the previous closure hardcoded legs[0] for BOTH legs, so the long
+    leg's mid was always None and marks never computed — confirmed defect).
+    """
+    d = qr.get("data")
+    if not isinstance(d, dict):
+        return None
+    inner = d.get(leg_symbol, d) if "symbol" not in d else d
+    if not isinstance(inner, dict):
+        return None
+    q = inner.get("latest_quote") or inner
+    if not isinstance(q, dict):
+        return None
+    bp, ap = q.get("bid_price", q.get("bp")), q.get("ask_price", q.get("ap"))
+    try:
+        if bp is not None and ap is not None:
+            return (float(bp) + float(ap)) / 2
+    except (TypeError, ValueError):
+        return None
+    return None

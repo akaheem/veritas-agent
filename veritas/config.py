@@ -63,7 +63,11 @@ class Settings:
     # --- Liquidity gates ---
     max_rel_spread: float = 0.30  # (ask-bid)/mid <= 30% on both legs
     min_open_interest: int = 100
-    min_volume: int = 10
+    # NOTE: alpaca-py 0.44.0 OptionContract/OptionsSnapshot expose NO volume
+    # field, so chain rows always carry volume=0 on any feed. The volume gate
+    # is therefore structurally unpassable and is skipped (advisory only);
+    # real liquidity is enforced via OI + relative-spread + edge_ratio floors.
+    min_volume: int = int(_env("VERITAS_MIN_VOLUME", "0"))
 
     # --- Risk gates (NOT LLM-overridable) ---
     max_loss_per_trade: float = 2_000.0  # 2% of $100k

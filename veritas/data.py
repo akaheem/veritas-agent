@@ -141,34 +141,73 @@ class MarketData:
                 )
                 oi_map: dict[str, int] = {}
                 vol_map: dict[str, int] = {}
+                contract_meta: dict[str, dict] = {}
                 try:
-                    contracts = self.trading.get_option_contracts(
-                        GetOptionContractsRequest(
-                            underlying_symbols=[sym],
-                            expiration_date_gte=utcnow().date(),
-                            expiration_date_lte=utcnow().date() + timedelta(days=SETTINGS.dte_max + 2),
-                            limit=500,
+                    # Contract metadata (strike/expiry/type) + OI/volume live on the
+                    # contracts endpoint. limit is PER-PAGE (max 10000); paginate to
+                    # cover the full 0–7 DTE window (SPY/QQQ chains exceed 1000).
+                    page_token = None
+                    while True:
+                        contracts = self.trading.get_option_contracts(
+                            GetOptionContractsRequest(
+                                underlying_symbols=[sym],
+                                expiration_date_gte=utcnow().date(),
+                                expiration_date_lte=utcnow().date() + timedelta(days=SETTINGS.dte_max + 2),
+                                limit=10000,
+                                page_token=page_token,
+                            )
                         )
-                    )
-                    for c in contracts.option_contracts if hasattr(contracts, "option_contracts") else contracts:
-                        oi_map[str(c.symbol)] = int(getattr(c, "open_interest", 0) or 0)
-                        vol_map[str(c.symbol)] = int(getattr(c, "volume", 0) or 0)
+                        page = contracts.option_contracts if hasattr(contracts, "option_contracts") else contracts
+                        for c in page:
+                            occ = _occ_meta(str(c.symbol))
+                            oi_map[str(c.symbol)] = int(getattr(c, "open_interest", 0) or 0)
+                            # OptionContract has no volume field (alpaca-py 0.44.0) —
+                            # volume stays 0; the liquidity gate treats it as advisory.
+                            vol_map[str(c.symbol)] = int(getattr(c, "volume", 0) or 0)
+                            contract_meta[str(c.symbol)] = {
+                                "strike": float(c.strike_price),
+                                "expiry": str(c.expiration_date)[:10],
+                                "type": str(getattr(c, "type", "") or "").lower()
+                                or (occ["type"] if occ else "put"),
+                            }
+                        page_token = getattr(contracts, "next_page_token", None)
+                        if not page_token:
+                            break
                 except Exception as e:  # noqa: BLE001 — OI is best-effort; liquidity gate degrades
                     self.audit.write(cyc, "contracts_oi_error", underlier=sym, error=str(e))
                 out_rows = []
                 for c in rows:
                     sym_opt = str(c.symbol)
-                    cp = "call" if (getattr(c, "type", None) == "call" or sym_opt[-8] == "C") else "put"
+                    # OptionsSnapshot (alpaca-py 0.44.0) exposes ONLY:
+                    #   symbol, latest_trade, latest_quote, implied_volatility, greeks
+                    # — no strike_price/expiration_date/bid_price/ask_price/type.
+                    # Derive quote fields from latest_quote; contract metadata
+                    # (strike/expiry/type) from the OCC symbol via the contracts
+                    # merge map, with an OCC-symbol fallback parse.
+                    info = contract_meta.get(sym_opt) or _occ_meta(sym_opt)
+                    if info is None:
+                        continue
+                    q = getattr(c, "latest_quote", None)
+                    bid = ask = None
+                    if q is not None:
+                        bid = getattr(q, "bid_price", None)
+                        ask = getattr(q, "ask_price", None)
+                    t = getattr(c, "latest_trade", None)
+                    if (bid is None or ask is None) and t is not None:
+                        px = getattr(t, "price", None)
+                        if px is not None:
+                            bid = bid if bid is not None else float(px)
+                            ask = ask if ask is not None else float(px)
                     out_rows.append(
                         {
                             "symbol": sym_opt,
-                            "strike": float(c.strike_price),
-                            "expiry": str(c.expiration_date),
-                            "type": cp,
-                            "bid": float(c.bid_price) if c.bid_price is not None else 0.0,
-                            "ask": float(c.ask_price) if c.ask_price is not None else 0.0,
+                            "strike": info["strike"],
+                            "expiry": info["expiry"],
+                            "type": info["type"],
+                            "bid": float(bid) if bid is not None else 0.0,
+                            "ask": float(ask) if ask is not None else 0.0,
                             "open_interest": oi_map.get(sym_opt, 0),
-                            "volume": vol_map.get(sym_opt, int(getattr(c, "volume", 0) or 0)),
+                            "volume": vol_map.get(sym_opt, 0),
                             "greeks_delta": getattr(getattr(c, "greeks", None), "delta", None),
                             "implied_vol": getattr(c, "implied_volatility", None),
                         }
@@ -199,3 +238,22 @@ class MarketData:
             "unrealized_pl": float(p.unrealized_pl),
             "asset_class": str(getattr(p, "asset_class", "us_equity")),
         }
+
+
+def _occ_meta(sym: str) -> dict | None:
+    """Parse contract metadata straight from the OCC symbol.
+
+    Layout: ROOT + YYMMDD + C/P + strike*1000 (e.g. SPY260908P00450000).
+    The C/P flag sits at index -9 (NOT -8, which is the first strike digit).
+    """
+    import re
+
+    m = re.match(r"^(?P<root>[A-Z]+)(?P<ymd>\d{6})(?P<cp>[CP])(?P<strike>\d{8})$", sym)
+    if not m:
+        return None
+    ymd, strike = m["ymd"], m["strike"]
+    return {
+        "expiry": f"20{ymd[:2]}-{ymd[2:4]}-{ymd[4:6]}",
+        "type": "call" if m["cp"] == "C" else "put",
+        "strike": int(strike) / 1000,
+    }

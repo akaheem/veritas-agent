@@ -117,6 +117,24 @@ class McpBroker:
                         delay *= 2
                         continue
                     return {"ok": False, "error": text, "tool": tool}
+                # alpaca-mcp-server returns API rejections / send-timeouts as
+                # NORMAL results (isError=False) containing {"error": {...}} —
+                # an ok:True wrapping an error payload must be surfaced as failure.
+                if isinstance(data, dict) and "error" in data:
+                    err = data["error"]
+                    text = str(err)
+                    is_timeout = isinstance(err, dict) and (err.get("timeout") or "timeout" in text.lower())
+                    self.audit.write("mcp", f"call:{tool}", args=_redact(args), ok=False, error=text[:200])
+                    if is_timeout:
+                        # order MAY have reached the broker — surface as timeout so
+                        # the caller takes the UNKNOWN path, never a blind resubmit
+                        return {"ok": False, "error": f"timeout:{text}", "tool": tool, "timeout": True}
+                    if any(k in text.lower() for k in ("rate limit", "502", "temporarily")):
+                        last_err = text
+                        await asyncio.sleep(delay)
+                        delay *= 2
+                        continue
+                    return {"ok": False, "error": text, "tool": tool}
                 self.audit.write("mcp", f"call:{tool}", args=_redact(args), ok=True)
                 return {"ok": True, "data": data}
             except Exception as e:  # noqa: BLE001 — transport level: timeout/5xx/connection
@@ -144,7 +162,8 @@ class McpBroker:
         return d if isinstance(d, list) else []
 
     # ---------- orders ----------
-    async def open_credit_spread(self, spread: SpreadCandidate, idem_tag: str, credit_ratio: float | None = None) -> dict:
+    async def open_credit_spread(self, spread: SpreadCandidate, idem_tag: str, credit_ratio: float | None = None,
+                                 client_order_id: str | None = None) -> dict:
         """Open a 2-leg credit spread as a single mleg order. limit_price = NET CREDIT (negative).
 
         Research-verified conventions (docs.alpaca.markets, alpaca-mcp-server v2.3.1):
@@ -154,6 +173,8 @@ class McpBroker:
         - Master Plan v2 §8: entry price is ADAPTIVE — credit_ratio comes from the
           Execution Confidence Score (0.90 normal / 0.80 reduced); the fixed
           entry_credit_buffer is only a fallback.
+        - client_order_id: pass the CALLER's id so timeout reconciliation can
+          query by the exact id that was submitted (Master Plan v2 §6.2).
         """
         ratio = credit_ratio if credit_ratio is not None else SETTINGS.entry_credit_buffer
         legs = []
@@ -172,7 +193,7 @@ class McpBroker:
             "type": "limit",
             "time_in_force": "day",
             "limit_price": f"{net_credit:.2f}",
-            "client_order_id": f"veritas-open-{idem_tag}-{uuid.uuid4().hex[:8]}",
+            "client_order_id": client_order_id or f"veritas-open-{idem_tag}-{uuid.uuid4().hex[:8]}",
             "legs": legs,
         }
         self.audit.write("mcp", "submit_open", args=_redact(args),

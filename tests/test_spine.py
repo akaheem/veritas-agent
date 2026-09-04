@@ -112,3 +112,43 @@ def test_validator_contracts_capped():
 
 def test_no_trade_always_passes():
     assert validate(TradeProposal(action="NO_TRADE"), []).passed
+
+
+# ---------- post-competition audit fixes (regression guards) ----------
+def test_occ_meta_parse():
+    from veritas.data import _occ_meta
+
+    m = _occ_meta("SPY260908P00450000")
+    assert m == {"expiry": "2026-09-08", "type": "put", "strike": 450.0}
+    c = _occ_meta("QQQ260909C00485000")
+    assert c["type"] == "call" and c["strike"] == 485.0
+    assert _occ_meta("NOT_AN_OCC") is None
+
+
+def test_leg_mid_uses_leg_own_symbol():
+    from veritas.position import _leg_mid
+
+    # per-contract keyed response: the LONG leg must resolve via ITS symbol
+    qr = {"ok": True, "data": {"SPY260908P00440000": {"latest_quote": {"bid_price": 1.0, "ask_price": 1.2}}}}
+    assert _leg_mid(qr, "SPY260908P00440000") == 1.1
+    assert _leg_mid(qr, "SPY260908P00441000") is None
+    # flat quote object shape
+    qr2 = {"ok": True, "data": {"bid_price": 0.5, "ask_price": 0.7}}
+    assert _leg_mid(qr2, "ANY") == 0.6
+
+
+def test_pending_submit_can_fill():
+    from veritas.orderstate import OrderState, can_transition
+
+    assert can_transition(OrderState.PENDING_SUBMIT, OrderState.FILLED)
+    assert can_transition(OrderState.PENDING_SUBMIT, OrderState.PARTIALLY_FILLED)
+
+
+def test_volume_gate_disabled_by_default():
+    # alpaca-py exposes no volume field → gate must be off unless re-enabled
+    assert SETTINGS.min_volume == 0
+
+
+def test_validator_no_trade_report_shape():
+    r = validate(TradeProposal(action="NO_TRADE"), [])
+    assert r.passed and r.checks.get("no_trade") is True and r.corrected is None

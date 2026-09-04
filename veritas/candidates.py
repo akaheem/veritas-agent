@@ -65,7 +65,9 @@ def _valid(r: dict) -> bool:
         return False
     if r.get("open_interest", 0) < SETTINGS.min_open_interest:
         return False
-    if r.get("volume", 0) < SETTINGS.min_volume:
+    # volume is structurally 0 on all feeds (no such field in alpaca-py models);
+    # the gate only applies if explicitly re-enabled via VERITAS_MIN_VOLUME > 0
+    if SETTINGS.min_volume > 0 and r.get("volume", 0) < SETTINGS.min_volume:
         return False
     return True
 

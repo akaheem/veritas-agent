@@ -28,7 +28,10 @@ class OrderState(str, Enum):
 
 
 ALLOWED_TRANSITIONS: dict[OrderState, set[OrderState]] = {
-    OrderState.PENDING_SUBMIT: {OrderState.SUBMITTED, OrderState.UNKNOWN, OrderState.REJECTED},
+    # PENDING_SUBMIT → FILLED is legal: a marketable limit can report an
+    # instant fill synchronously; refusing the transition stranded the record
+    OrderState.PENDING_SUBMIT: {OrderState.SUBMITTED, OrderState.UNKNOWN, OrderState.REJECTED,
+                                OrderState.FILLED, OrderState.PARTIALLY_FILLED},
     OrderState.SUBMITTED: {OrderState.PARTIALLY_FILLED, OrderState.FILLED, OrderState.CANCELED, OrderState.UNKNOWN},
     OrderState.UNKNOWN: {OrderState.SUBMITTED, OrderState.PARTIALLY_FILLED, OrderState.FILLED, OrderState.CANCELED, OrderState.REJECTED},
     OrderState.PARTIALLY_FILLED: {OrderState.FILLED, OrderState.CANCELED, OrderState.UNKNOWN},

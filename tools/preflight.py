@@ -104,8 +104,14 @@ async def main(competition: bool) -> int:
     try:
         brain = DecisionCore()
         prop = brain.decide(feats, cands, snap.positions, snap.account, 0.0)
-        check("LLM decision parses", True,
-              f"action={prop.action} thesis='{(prop.thesis or '')[:60]}'")
+        # decide() degrades API failures into a NO_TRADE fallback whose thesis
+        # is tagged "[decision-fallback: ...]" — that must count as a FAILURE
+        # here, or preflight green-lights a session where the LLM never works.
+        thesis = prop.thesis or ""
+        fallback = thesis.startswith("[decision-fallback:")
+        check("LLM decision parses", not fallback,
+              (f"LLM UNAVAILABLE: {thesis[:180]}" if fallback
+               else f"action={prop.action} thesis='{thesis[:60]}'"))
     except Exception as e:  # noqa: BLE001
         check("LLM decision parses", False, f"{type(e).__name__}: {str(e)[:200]}")
 

@@ -204,7 +204,10 @@ async def run_cycle(audit: AuditLog, data: MarketData, brain: DecisionCore,
 
     coid = f"veritas-open-{cyc}-{__import__('uuid').uuid4().hex[:8]}"
     orders.register(coid)
-    r = await broker.open_credit_spread(spread, idem_tag=cyc, credit_ratio=credit_ratio)
+    # pass the registered coid through — the id we track for UNKNOWN
+    # reconciliation MUST be the id the broker actually received
+    r = await broker.open_credit_spread(spread, idem_tag=cyc, credit_ratio=credit_ratio,
+                                        client_order_id=coid)
     if not r.get("ok") and "timeout" in str(r.get("error", "")).lower():
         # UNKNOWN state: order MAY exist — reconciliation loop will resolve by coid
         orders.on_timeout(coid)

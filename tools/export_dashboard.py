@@ -51,20 +51,25 @@ def main() -> None:
     ]
 
     decisions = []
-    for prop, val, risk in zip(
-        by_stage.get("llm_proposal", []),
-        by_stage.get("validation", []),
-        by_stage.get("risk", []),
-    ):
+    # pair proposal → validation → risk by CYCLE id, never positionally:
+    # risk events exist only for validation-passing cycles, so a positional
+    # zip pairs a NO_TRADE proposal with a later cycle's verdict (confirmed defect)
+    val_by_cycle = {e["cycle"]: e for e in by_stage.get("validation", [])}
+    risk_by_cycle = {e["cycle"]: e for e in by_stage.get("risk", [])}
+    for prop in by_stage.get("llm_proposal", []):
+        cyc = prop["cycle"]
+        val = val_by_cycle.get(cyc)
+        risk = risk_by_cycle.get(cyc)
         decisions.append(
             {
                 "ts": prop["ts"],
+                "cycle": cyc,
                 "action": prop["payload"].get("proposal", {}).get("action"),
                 "thesis": prop["payload"].get("proposal", {}).get("thesis", "")[:300],
                 "confidence": prop["payload"].get("proposal", {}).get("confidence"),
-                "validation": val["payload"].get("report", {}).get("passed"),
-                "risk_approved": risk["payload"].get("verdict", {}).get("approved"),
-                "risk_failures": risk["payload"].get("verdict", {}).get("failures", []),
+                "validation": val["payload"].get("report", {}).get("passed") if val else None,
+                "risk_approved": risk["payload"].get("verdict", {}).get("approved") if risk else None,
+                "risk_failures": risk["payload"].get("verdict", {}).get("failures", []) if risk else [],
             }
         )
 
